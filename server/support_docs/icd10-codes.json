@@ -1,0 +1,184 @@
+{
+  "icd10_codes": [
+    {
+      "condition": "Anxiety",
+      "code": "F41.1",
+      "description": "Generalized anxiety disorder"
+    },
+    {
+      "condition": "Anxiety",
+      "code": "F41.3",
+      "description": "Other mixed anxiety disorders"
+    },
+    {
+      "condition": "Anxiety",
+      "code": "F41.8",
+      "description": "Other specified anxiety disorders"
+    },
+    {
+      "condition": "Anxiety",
+      "code": "F41.9",
+      "description": "Anxiety disorder"
+    },
+    {
+      "condition": "Arthritis",
+      "code": "M19.90",
+      "description": "osteoarthritis - use more specific if known"
+    },
+    {
+      "condition": "Chronic Kidney Disease (CKD)",
+      "code": "N18.9",
+      "description": "CKD"
+    },
+    {
+      "condition": "Chronic Kidney Disease (CKD)",
+      "code": "N18.6",
+      "description": "stage 5 kidney disease"
+    },
+    {
+      "condition": "Chronic Kidney Disease (CKD)",
+      "code": "N18.6",
+      "description": "end-stage renal disease"
+    },
+    {
+      "condition": "Congestive Heart Failure (CHF)",
+      "code": "I50.9",
+      "description": "Heart failure"
+    },
+    {
+      "condition": "Congestive Heart Failure (CHF)",
+      "code": "I50.20",
+      "description": "systolic heart failure"
+    },
+    {
+      "condition": "Congestive Heart Failure (CHF)",
+      "code": "I50.30",
+      "description": "diastolic heart failure"
+    },
+    {
+      "condition": "Coronary Artery Disease (CAD)",
+      "code": "I25.10",
+      "description": "Atherosclerotic heart disease of native coronary artery without angina"
+    },
+    {
+      "condition": "Coronary Artery Disease (CAD)",
+      "code": "I25.11",
+      "description": "Atherosclerotic heart disease of native coronary artery with angina"
+    },
+    {
+      "condition": "Depression",
+      "code": "F32.9",
+      "description": "Major depressive disorder, single episode"
+    },
+    {
+      "condition": "Depression",
+      "code": "F33.9",
+      "description": "Major depressive disorder, recurrent"
+    },
+    {
+      "condition": "Fatty Liver Disease",
+      "code": "K76.0",
+      "description": "Fatty [change of] liver, not elsewhere classified"
+    },
+    {
+      "condition": "Hypertension (High Blood Pressure)",
+      "code": "I10",
+      "description": "Essential [primary] hypertension"
+    },
+    {
+      "condition": "Insomnia",
+      "code": "G47.00",
+      "description": "Insomnia"
+    },
+    {
+      "condition": "Insomnia",
+      "code": "G47.01",
+      "description": "Insomnia due to medical condition"
+    },
+    {
+      "condition": "Sleep Apnea",
+      "code": "G47.30",
+      "description": "Sleep Apnea"
+    },
+    {
+      "condition": "Low Blood Pressure (Hypotension)",
+      "code": "I95.9",
+      "description": "Hypotension"
+    },
+    {
+      "condition": "Metabolic Syndrome",
+      "code": "E88.81",
+      "description": "Metabolic syndrome"
+    },
+    {
+      "condition": "Overweight",
+      "code": "E66.3",
+      "description": "Overweight"
+    },
+    {
+      "condition": "Overweight",
+      "code": "E66.9",
+      "description": "Obesity"
+    },
+    {
+      "condition": "Osteopenia (Low Bone Density)",
+      "code": "M85.80",
+      "description": "Disorders of bone density and structure"
+    },
+    {
+      "condition": "Peripheral Vascular Disease (PVD)",
+      "code": "I73.9",
+      "description": "Peripheral vascular disease"
+    },
+    {
+      "condition": "Rheumatoid Arthritis",
+      "code": "M06.9",
+      "description": "Rheumatoid arthritis"
+    },
+    {
+      "condition": "Type 2 Diabetes",
+      "code": "E11.9",
+      "description": "Type 2 Diabetes without complications"
+    },
+    {
+      "condition": "Back Pain",
+      "code": "M54.59",
+      "description": "Other Lower Back Pain"
+    },
+    {
+      "condition": "ADHD",
+      "code": "F90.9",
+      "description": "Attention-deficit hyperactivity disorder"
+    },
+    {
+      "condition": "High Cholesterol",
+      "code": "E78.00",
+      "description": "High Cholesterol"
+    },
+    {
+      "condition": "Headache",
+      "code": "G44.209",
+      "description": "Tension-type headache"
+    },
+    {
+      "condition": "Muscle Tension/Fibromyalgia",
+      "code": "M79.10",
+      "description": "Myalgia"
+    },
+    {
+      "condition": "Muscle Tension/Fibromyalgia",
+      "code": "M79.7",
+      "description": "Fibromyalgia"
+    },
+    {
+      "condition": "Stress",
+      "code": "F43.0",
+      "description": "Acute stress reaction"
+    },
+    {
+      "condition": "Stress",
+      "code": "F43.8",
+      "description": "Other reactions to severe stress"
+    }
+  ]
+}

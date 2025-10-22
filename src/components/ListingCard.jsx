@@ -1,5 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 
+// Helper function to convert business name to URL-friendly format
+const toUrlFriendly = (name) => {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_') // Replace non-alphanumeric with underscore
+    .replace(/^_+|_+$/g, ''); // Remove leading/trailing underscores
+};
+
 export default function ListingCard({ listing, isHighlighted, onClick }) {
   const navigate = useNavigate();
 
@@ -8,8 +16,9 @@ export default function ListingCard({ listing, isHighlighted, onClick }) {
     if (onClick) {
       onClick();
     }
-    // Navigate to service details page
-    navigate(`/service/${listing.id}`);
+    // Navigate to service details page using business name
+    const urlFriendlyName = toUrlFriendly(listing.name || listing.business_name || `service-${listing.id}`);
+    navigate(`/service/${urlFriendlyName}`);
   };
 
   return (
@@ -84,17 +93,16 @@ export default function ListingCard({ listing, isHighlighted, onClick }) {
         </div>
         
         <div>
-          {listing.bookingLink && (
-            <a
-              href={listing.bookingLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center text-sm font-medium text-emerald-600 hover:text-emerald-700 mb-2"
-            >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              const urlFriendlyName = toUrlFriendly(listing.name || listing.business_name || `service-${listing.id}`);
+              navigate(`/book/${urlFriendlyName}`);
+            }}
+            className="inline-flex items-center text-sm font-medium text-emerald-600 hover:text-emerald-700 mb-2"
+          >
             📅 Book Now →
-          </a>
-        )}
+          </button>
         </div>
       </div>
     </div>

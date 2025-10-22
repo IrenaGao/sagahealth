@@ -2,8 +2,13 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
+// Helper function to convert URL-friendly name back to potential business name matches
+const fromUrlFriendly = (urlName) => {
+  return urlName.replace(/_/g, ' ');
+};
+
 export default function ServiceDetails() {
-  const { id } = useParams();
+  const { businessName } = useParams();
   const navigate = useNavigate();
   const [service, setService] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -11,15 +16,19 @@ export default function ServiceDetails() {
 
   useEffect(() => {
     fetchServiceDetails();
-  }, [id]);
+  }, [businessName]);
 
   const fetchServiceDetails = async () => {
     try {
       setLoading(true);
+      
+      // Convert URL-friendly name back to search pattern
+      const searchPattern = fromUrlFriendly(businessName);
+      
       const { data, error } = await supabase
         .from('providers')
         .select('*')
-        .eq('id', id)
+        .ilike('business_name', searchPattern)
         .single();
 
       if (error) {
@@ -90,18 +99,32 @@ export default function ServiceDetails() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-50">
-      {/* Header with Back Button */}
+      {/* Header with Logo and Back Button */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
         <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            <span className="font-medium">Back to Marketplace</span>
-          </button>
+          <div className="flex items-center justify-between">
+            {/* Logo */}
+            <button
+              onClick={() => navigate('/')}
+              className="flex items-center gap-2 flex-shrink-0"
+            >
+              <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-lg">S</span>
+              </div>
+              <h1 className="text-xl font-bold text-gray-900 hidden sm:block">Saga Health</h1>
+            </button>
+            
+            {/* Back Button */}
+            <button
+              onClick={() => navigate('/')}
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              <span className="font-medium">Back to Marketplace</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -173,18 +196,14 @@ export default function ServiceDetails() {
           )}
 
           {/* Booking Button */}
-          {service.bookingLink && (
-            <div className="flex justify-center pt-2">
-              <a
-                href={service.bookingLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full sm:w-auto px-8 py-4 bg-emerald-500 text-white text-lg font-semibold rounded-xl shadow-lg hover:bg-emerald-600 transition-all hover:shadow-xl text-center"
-              >
-                Book Now
-              </a>
-            </div>
-          )}
+          <div className="flex justify-center pt-2">
+            <button
+              onClick={() => navigate(`/book/${businessName}`)}
+              className="w-full sm:w-auto px-8 py-4 bg-emerald-500 text-white text-lg font-semibold rounded-xl shadow-lg hover:bg-emerald-600 transition-all hover:shadow-xl"
+            >
+              Book Now
+            </button>
+          </div>
         </div>
       </div>
     </div>
