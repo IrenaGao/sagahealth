@@ -44,7 +44,9 @@ app.post('/api/generate-lmn', async (req, res) => {
       riskFactors,
       preventiveTargets,
       attestation,
-      desiredProduct
+      desiredProduct,
+      businessName,
+      paymentProcessed
     } = req.body;
 
     // Validate required fields
@@ -64,33 +66,43 @@ app.post('/api/generate-lmn', async (req, res) => {
       });
     }
 
-    // Transform form data to match LMN generator schema
+    // Check if payment has been processed
+    if (!paymentProcessed) {
+      return res.status(400).json({ 
+        error: 'Payment required',
+        details: 'Payment must be processed before generating LMN'
+      });
+    }
+    console.log("desired product", desiredProduct);
+    console.log("business name", businessName);
+
+    // Transform form data to match LMN generator schema. Keep name out of this.
     const lmnInput = {
-      name: `${firstName} ${lastName}`,
       age: parseInt(age),
+      sex: sex,
       hsa_provider: hsaProvider,
       state: state,
       diagnosed_conditions: diagnosedConditions || [],
+      family_history: familyHistory || [],
       risk_factors: riskFactors || [],
       preventive_targets: preventiveTargets ? [preventiveTargets] : [],
-      desired_product: desiredProduct || ''
+      desired_product: desiredProduct || '',
+      business_name: businessName || ''
     };
 
     console.log('Generating LMN for:', lmnInput);
 
     // Generate the LMN
     // const lmnResult = await generateLMN(JSON.stringify(lmnInput));
-    const lmnResult = `Now I'll draft a Letter of Medical Necessity for you based on your diagnosed conditions and desired product. Since you mentioned '1' as the desired product, I'll assume this refers to a gym membership or fitness program, which is a common HSA-eligible expense that can help with anxiety and depression.
+    const lmnResult = `Based on my searches, I'll now create a Letter of Medical Necessity for massage therapy:
 
 \`\`\`json
 {
-  "treatment": "The patient, Irena Gao, a 30-year-old female with diagnosed Anxiety (F41.9) and Depression (F32.9), is being prescribed a structured physical exercise program through a gym membership. The recommended regimen includes 30 minutes of moderate-intensity aerobic exercise at least 3-4 times per week, complemented by 2 sessions of resistance training. This exercise protocol is designed to increase endorphin production, reduce cortisol levels, and improve overall mood regulation. The program should be maintained consistently as part of the management plan for 12 months, with periodic reassessment of symptom improvement.",
-  
-  "clinical_rationale": "Regular physical exercise has been clinically demonstrated to reduce symptoms of anxiety and depression through multiple physiological and psychological mechanisms. Research indicates that structured exercise programs can be as effective as pharmacotherapy for mild to moderate depression and anxiety disorders (Blumenthal et al., 2007; PMID: 17846259). A meta-analysis of randomized controlled trials found that exercise interventions produced moderate to large effects in reducing anxiety symptoms (Stubbs et al., 2017; PMID: 28319557). The patient's specific presentation of anxiety (F41.9) and depression (F32.9) is likely to respond positively to regular physical activity, which has been shown to increase serotonin and norepinephrine levels while reducing inflammatory markers associated with mood disorders.",
-  
-  "role_in_health": "The prescribed gym membership will provide the patient with access to necessary equipment and environment to perform the recommended exercise protocol. Regular physical activity will serve as a complementary non-pharmacological intervention to address the patient's anxiety and depression symptoms. Exercise has been shown to improve sleep quality, reduce rumination, enhance self-efficacy, and provide positive social interactions, all of which are beneficial for patients with mood and anxiety disorders. This intervention aligns with current clinical guidelines that recommend physical activity as a first-line treatment component for mild to moderate mental health conditions.",
-  
-  "conclusion": "Based on the patient's clinical presentation of Anxiety (F41.9) and Depression (F32.9), and the substantial body of evidence supporting exercise as an effective intervention for these conditions, I am recommending a gym membership as medically necessary as part of the patient's comprehensive treatment plan."
+  "reported_diagnosis": "Anxiety and Depression with Chronic Pain risk",
+  "treatment": "The patient is recommended to undergo regular massage therapy sessions at Tension Intervention. The treatment plan includes twice-monthly 60-minute therapeutic massage sessions focusing on myofascial release techniques, trigger point therapy, and Swedish massage methods. These sessions will specifically target areas of muscle tension that exacerbate anxiety symptoms and contribute to pain patterns. The therapist at Tension Intervention will document progress after each session, adjusting techniques as needed to address the patient's evolving symptoms as part of the management plan for 12 months.",
+  "clinical_rationale": "The patient presents with diagnosed anxiety (F41.9) and depression (F32.9), with a family history of depression and chronic pain, placing her at elevated risk for developing chronic pain conditions herself. Research has demonstrated that massage therapy is an effective complementary treatment for both anxiety and depression. A systematic review (PMID: 28891221; Field T, 2016) found that massage therapy significantly reduced anxiety and depression symptoms through multiple physiological mechanisms, including reduced cortisol levels and increased serotonin and dopamine. Additionally, regular massage therapy at Tension Intervention can help prevent the development of chronic pain by addressing muscle tension patterns before they become persistent pain conditions. The patient's expressed desire to 'be healthier' aligns with this preventive approach.",
+  "role_the_service_provides": "Tension Intervention's massage therapy services provide a non-pharmacological intervention that reduces physiological markers of stress, decreases muscle tension, and improves mood regulation to complement standard treatments for anxiety and depression.",
+  "conclusion": "Given the patient's diagnosed conditions of anxiety and depression, family history of chronic pain, and the substantial clinical evidence supporting massage therapy's efficacy for these conditions, the requested massage therapy services at Tension Intervention are medically necessary as part of the patient's comprehensive treatment plan."
 }
 \`\`\``;
 
@@ -106,7 +118,9 @@ app.post('/api/generate-lmn', async (req, res) => {
       name: `${firstName} ${lastName}`,
       email,
       hsaProvider,
-      desiredProduct: desiredProduct || 'Wellness service/product'
+      diagnosedConditions: diagnosedConditions || [],
+      desiredProduct: desiredProduct || 'Wellness service/product',
+      businessName: businessName || ''
     });
     console.log('PDF generated successfully', pdfBase64);
     
@@ -116,7 +130,7 @@ app.post('/api/generate-lmn', async (req, res) => {
     const pdfBuffer = Buffer.from(pdfBase64, 'base64');
     writeFileSync(pdfFilePath, pdfBuffer);
     console.log(`PDF saved to: ${pdfFilePath}`);
-    return;
+    // return;
 
     // Send to SignWell for signature
     console.log('Sending to SignWell for e-signature...');

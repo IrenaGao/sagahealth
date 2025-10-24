@@ -31,14 +31,16 @@ const llm = new ChatAnthropic({
 
 // Define the user query schema
 const userQuerySchema = z.object({
-  name: z.string(),
+  sex: z.string(),
   age: z.number().int().positive(),
   hsa_provider: z.string(),
   state: z.string().length(2),
   diagnosed_conditions: z.array(z.string()),
+  family_history: z.array(z.string()),
   risk_factors: z.array(z.string()),
   preventive_targets: z.array(z.string()),
   desired_product: z.string().optional(),
+  business_name: z.string().optional(),
 });
 
 // Validate the schema
@@ -70,10 +72,13 @@ Rules
   * "icd_codes": array of ICD-10 codes (e.g., ["F41.9", "J45.9"])
   * "condition": array of condition categories (e.g., ["Anxiety", "Asthma"])
 * Output must strictly follow the LetterSpec JSON schema with the additional fields above. Do not output anything else outside of the JSON itself.
-* Only include the following four fields in your output: reported diagnosis, treatment, clinical rationale, role that the service plays in helping with the patient's health, and conclusion
+* Only include the following five fields in your output: reported_diagnosis, treatment, clinical_rationale, role_the_service_provides, and conclusion. Do not include any other fields.
+* Keep reported diagnosis as only the name of the condition, so just a couple words.
 * In the clinical rationale section, reference at least one published study by their PMID and abbreviated citation that justifies the service to be clinically necessary for the treatment.
 * In the conclusion, end with "medically necessary as part of the patient's comprehensive treatment plan."
 * Keep the role the service plays in helping with the patient's health to one sentence.
+* Sprinkle in the business name throughout the LMN when you mention the recommended treatment.
+* When referring to the patient, only use "the patient."
 * If a treatment time frame is mentioned, use the phrasing "as part of the management plan for 12 months."
 * In the treatment section only and no other fields, elaborate on an actual exercise or treatment regime.
 * Keep the information within one page.

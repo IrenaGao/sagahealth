@@ -1,4 +1,12 @@
 import axios from 'axios';
+import * as dotenv from 'dotenv';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+// Get current file directory and load environment variables
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+dotenv.config({ path: join(__dirname, '../../.env') });
 
 const SIGNWELL_API_KEY = process.env.SIGNWELL_API_KEY;
 const SIGNWELL_API_URL = 'https://www.signwell.com/api/v1';
@@ -34,9 +42,16 @@ export async function createSignatureRequest(params: SignatureRequestParams): Pr
     console.log('Creating signature request...');
     console.log('Recipient:', recipientEmail, recipientName);
     
+    // Get current date for document name
+    const currentDate = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    
     const signatureRequestData = {
       test_mode: true, // Set to false for production
-      name: `LMN for ${recipientName}`,
+      name: `LMN for ${recipientName} - ${currentDate}`,
       draft: false,
       recipients: [
         {
@@ -51,20 +66,74 @@ export async function createSignatureRequest(params: SignatureRequestParams): Pr
           file_base64: pdfBase64
         }
       ],
-      fields: [
-        [
-            {
-                "x": 0,
-                "y": 0,
-                "page": 0,
-                "recipient_id": "1",
-                "type": "signature",
-                "required": true,
-            }
-        ]
-      ],
+    //   fields: [
+    //     [
+    //         {
+    //             "x": 72,
+    //             "y": 620,
+    //             "page": 2,
+    //             "recipient_id": "1",
+    //             "type": "signature",
+    //             "required": true,
+    //         },
+    //         {
+    //             "x": 180,
+    //             "y": 380,
+    //             "page": 2,
+    //             "recipient_id": "1",
+    //             "type": "text",
+    //             "required": true,
+    //             "label": "Provider Name"
+    //         },
+    //         {
+    //             "x": 420,
+    //             "y": 380,
+    //             "page": 2,
+    //             "recipient_id": "1",
+    //             "type": "text",
+    //             "required": true,
+    //             "label": "Provider Address"
+    //         },
+    //         {
+    //             "x": 235,
+    //             "y": 410,
+    //             "page": 2,
+    //             "recipient_id": "1",
+    //             "type": "text",
+    //             "required": true,
+    //             "label": "Provider Phone Number"
+    //         },
+    //         {
+    //             "x": 450,
+    //             "y": 410,
+    //             "page": 2,
+    //             "recipient_id": "1",
+    //             "type": "text",
+    //             "required": true,
+    //             "label": "Provider Email"
+    //         },
+    //         {
+    //             "x": 195,
+    //             "y": 440,
+    //             "page": 2,
+    //             "recipient_id": "1",
+    //             "type": "text",
+    //             "required": true,
+    //             "label": "Provider License"
+    //         },
+    //         {
+    //             "x": 458,
+    //             "y": 440,
+    //             "page": 2,
+    //             "recipient_id": "1",
+    //             "type": "text",
+    //             "required": true,
+    //             "label": "License State"
+    //         }
+    //     ]
+    //   ],
       reminders: true,
-      text_tags: false,
+      text_tags: true,
       api_application_id: null
     };
 

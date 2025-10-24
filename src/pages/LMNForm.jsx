@@ -1,11 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
+// Helper function to convert URL-friendly name to proper format
+const formatBusinessName = (urlName) => {
+  if (!urlName) return '';
+  return urlName
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
+
 export default function LMNForm() {
   const navigate = useNavigate();
-  const { businessName } = useParams();
+  const { businessName: urlBusinessName } = useParams();
   const [searchParams] = useSearchParams();
   const serviceType = searchParams.get('service') || 'Wellness service';
+  const businessName = formatBusinessName(urlBusinessName);
   
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 4;
@@ -135,45 +145,32 @@ export default function LMNForm() {
     setSubmitError(null);
     
     try {
-      // Call the API to generate LMN
-      const response = await fetch('http://localhost:3001/api/generate-lmn', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...formData,
-          desiredProduct: serviceType // Use the service type from URL params
-        })
-      });
-
-      console.log("body", JSON.stringify({
-        ...formData,
-        desiredProduct: serviceType // Use the service type from URL params
-      }))
-
-      const data = await response.json();
-      console.log('LMN Responseee:', data);
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate LMN');
+      // Validate form data
+      if (!formData.firstName || !formData.lastName || !formData.email || !formData.age || !formData.hsaProvider || !formData.state) {
+        throw new Error('Please fill in all required fields');
       }
-
-      console.log('pass this')
-
       
-      // Show success message
-      alert(
-        `Success! Your Letter of Medical Necessity has been generated and sent to ${data.signatureRequest.sentTo} for e-signature. ` +
-        'Please check your email to review and sign the document.'
-      );
+      if (!formData.attestation) {
+        throw new Error('Please agree to the attestation');
+      }
       
-      // Navigate back to home
-      navigate('/');
+      // Prepare form data for payment page
+      const paymentFormData = {
+        ...formData,
+        desiredProduct: serviceType,
+        businessName: businessName
+      };
+      
+      // Redirect to payment page with form data
+      navigate('/payment', { 
+        state: { 
+          formData: paymentFormData 
+        } 
+      });
       
     } catch (error) {
-      console.error('Error submitting form:', error);
-      setSubmitError(error.message || 'Failed to submit form. Please try again.');
+      console.error('Error preparing form:', error);
+      setSubmitError(error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -365,6 +362,9 @@ export default function LMNForm() {
                     <option value="Further">Further</option>
                     <option value="Bank of America">Bank of America</option>
                     <option value="WageWorks">WageWorks</option>
+                    <option value="FSA Feds">FSA Feds</option>
+                    <option value="PA Group">PA Group</option>
+                    <option value="WEX">WEX</option>
                     <option value="PayFlex">PayFlex</option>
                     <option value="HealthSavings Administrators">HealthSavings Administrators</option>
                     <option value="ConnectYourCare">ConnectYourCare</option>
