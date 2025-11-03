@@ -69,3 +69,4 @@ export function startBookingPolling(accessToken, calendarId, onBookingDetected, 
   return () => clearInterval(pollInterval);
 }
 
+

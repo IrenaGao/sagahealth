@@ -15,6 +15,7 @@ export default function LMNForm() {
   const { businessName: urlBusinessName } = useParams();
   const [searchParams] = useSearchParams();
   const serviceType = searchParams.get('service') || 'Wellness service';
+  const servicePrice = parseFloat(searchParams.get('price')) || 80;
   const businessName = formatBusinessName(urlBusinessName);
   
   const [currentStep, setCurrentStep] = useState(1);
@@ -161,10 +162,13 @@ export default function LMNForm() {
         businessName: businessName
       };
       
-      // Redirect to payment page with form data
+      // Redirect to payment page with form data and service price
       navigate('/payment', { 
         state: { 
-          formData: paymentFormData 
+          formData: paymentFormData,
+          servicePrice: servicePrice,
+          serviceName: serviceType,
+          businessName: businessName
         } 
       });
       
@@ -573,7 +577,7 @@ export default function LMNForm() {
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      Submit LMN Request
+                      Proceed to LMN Payment
                     </>
                   )}
                 </button>

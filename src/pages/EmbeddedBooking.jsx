@@ -123,9 +123,10 @@ export default function EmbeddedBooking() {
   const onBookingComplete = () => {
     console.log('Booking completed!');
     
-    // Navigate to LMN form with service type
+    // Navigate to LMN form with service type and price
     const serviceType = bookingOption?.serviceType || 'Wellness service';
-    navigate(`/book/${businessName}/lmn-form?service=${encodeURIComponent(serviceType)}`);
+    const servicePrice = bookingOption?.price || 80;
+    navigate(`/book/${businessName}/lmn-form?service=${encodeURIComponent(serviceType)}&price=${servicePrice}`);
     
     return true;
   };
@@ -235,7 +236,7 @@ export default function EmbeddedBooking() {
           <div className="flex items-start">
             <div className="flex-1">
               <p className="text-sm font-semibold text-amber-900">
-                ⚠️ <span className="ml-1">Important: Your appointment is NOT confirmed until you click "Get your LMN now" at the bottom of this page</span>
+                ⚠️ <span className="ml-1">Important: Your appointment is NOT confirmed until you click "Get your LMN now" or "Pay for my appointment" at the bottom of this page</span>
               </p>
             </div>
           </div>
@@ -267,28 +268,62 @@ export default function EmbeddedBooking() {
           />
         </div>
 
-        {/* Manual Confirmation (Workaround for CORS) */}
-        <div className="mt-6 bg-gradient-to-br from-emerald-50 to-blue-50 border-2 border-emerald-200 rounded-xl p-6">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex-1">
-              <h3 className="text-base font-bold text-gray-900 mb-1">
-                Ready to use your HSA funds?
-              </h3>
-              <p className="text-sm text-gray-700">
-                Save ~30% on your appointment by unlocking pre-tax HSA/FSA funds. Just take a
-                quick health survey, pay a $20 fee, and get your Letter of Medical Necessity (LMN)
-                in hours.
-              </p>
+        {/* Payments Section */}
+        <div className="mt-6 bg-white rounded-2xl shadow-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Payments</h2>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* First time using HSA funds - Green subsection */}
+            <div className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl p-6">
+              <div className="flex flex-col h-full">
+                <h3 className="text-lg font-bold text-green-900 mb-3">
+                  First time booking this service? Get your LMN now!
+                </h3>
+                <p className="text-sm text-green-800 mb-4 flex-1">
+                  Save ~30% on your appointment by unlocking pre-tax HSA/FSA funds. Just take a
+                  quick health survey, pay a $20 fee, and get your Letter of Medical Necessity (LMN)
+                  in hours. You can also pay for your appointment here!
+                </p>
+                <button
+                  onClick={onBookingComplete}
+                  className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Get your LMN now
+                </button>
+              </div>
             </div>
-            <button
-              onClick={onBookingComplete}
-              className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center gap-2 whitespace-nowrap"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Get your LMN now
-            </button>
+
+            {/* Already have an LMN - Blue subsection */}
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-6">
+              <div className="flex flex-col h-full">
+                <h3 className="text-lg font-bold text-blue-900 mb-3">
+                  Already have an LMN? Proceed directly to payment!
+                </h3>
+                <p className="text-sm text-blue-800 mb-4 flex-1">
+                  If you already have a Letter of Medical Necessity for this service, you can proceed
+                  directly to payment and use your HSA/FSA funds for reimbursement.
+                </p>
+                <button
+                  onClick={() => navigate('/payment', { 
+                    state: { 
+                      servicePrice: bookingOption.price || 80,
+                      serviceName: bookingOption.name,
+                      businessName: service.name,
+                      serviceOnly: true
+                    } 
+                  })}
+                  className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
+                  Pay for my appointment
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

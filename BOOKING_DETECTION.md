@@ -206,3 +206,4 @@ For questions or issues with booking detection:
 3. Test with different booking times
 4. Check CORS policies in browser DevTools
 
+

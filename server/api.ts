@@ -3,6 +3,7 @@ import cors from 'cors';
 import { generateLMN } from './lmn-generator.js';
 import { generateLMNPDFBuffer } from './utils/pdfGenerator.js';
 import { createSignatureRequest } from './utils/signwellService.js';
+import stripe from './stripe.js';
 import * as dotenv from 'dotenv';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -25,6 +26,68 @@ app.use(express.json());
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
+});
+
+// Stripe payment endpoints
+app.post('/api/create-payment-intent', async (req, res) => {
+  try {
+    const { amount, currency = 'usd', metadata = {} } = req.body;
+    
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'Invalid amount' });
+    }
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100), // Convert to cents
+      currency,
+      metadata,
+      automatic_payment_methods: {
+        enabled: true,
+      },
+      transfer_data: {
+        destination: 'acct_1SOnkpIWEFJmAlLf',
+      },
+      application_fee_amount: Math.round(amount * 100 * 0.075), // 7.5% application fee
+    });
+
+    res.json({
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+    });
+  } catch (error) {
+    console.error('Error creating payment intent:', error);
+    res.status(500).json({ error: 'Failed to create payment intent' });
+  }
+});
+
+app.post('/api/confirm-payment', async (req, res) => {
+  try {
+    const { paymentIntentId } = req.body;
+    
+    if (!paymentIntentId) {
+      return res.status(400).json({ error: 'Payment intent ID required' });
+    }
+
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    
+    if (paymentIntent.status === 'succeeded') {
+      res.json({ 
+        success: true, 
+        status: paymentIntent.status,
+        amount: paymentIntent.amount / 100, // Convert back from cents
+        currency: paymentIntent.currency
+      });
+    } else {
+      res.json({ 
+        success: false, 
+        status: paymentIntent.status,
+        error: 'Payment not completed'
+      });
+    }
+  } catch (error) {
+    console.error('Error confirming payment:', error);
+    res.status(500).json({ error: 'Failed to confirm payment' });
+  }
 });
 
 // LMN generation endpoint

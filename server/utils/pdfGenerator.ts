@@ -133,15 +133,52 @@ export async function generateLMNPDFBuffer(lmnData: string, userInfo: UserInfo):
             
             // Save the merged PDF
             const mergedPdfBytes = await mergedPdf.save();
-            resolve(Buffer.from(mergedPdfBytes).toString('base64'));
+
+            // Enforce a maximum of 3 pages on the final PDF
+            try {
+              const mergedLoaded = await PDFLibDocument.load(mergedPdfBytes);
+              const limitedPdf = await PDFLibDocument.create();
+              const pageIndices = mergedLoaded.getPageIndices().slice(0, 3);
+              const limitedPages = await limitedPdf.copyPages(mergedLoaded, pageIndices);
+              limitedPages.forEach((p) => limitedPdf.addPage(p));
+              const limitedBytes = await limitedPdf.save();
+              resolve(Buffer.from(limitedBytes).toString('base64'));
+            } catch (limitErr) {
+              console.warn('Failed to limit merged PDF to 3 pages, returning original merged PDF:', limitErr);
+              resolve(Buffer.from(mergedPdfBytes).toString('base64'));
+            }
             
             console.log(`Successfully merged HSA form for ${userInfo.hsaProvider} with LMN`);
           } catch (error) {
             console.error('Error combining PDFs:', error);
-            resolve(lmnBuffer.toString('base64'));
+            // Fall back to LMN only, limited to 3 pages
+            try {
+              const lmnLoaded = await PDFLibDocument.load(lmnBuffer);
+              const limitedPdf = await PDFLibDocument.create();
+              const pageIndices = lmnLoaded.getPageIndices().slice(0, 3);
+              const limitedPages = await limitedPdf.copyPages(lmnLoaded, pageIndices);
+              limitedPages.forEach((p) => limitedPdf.addPage(p));
+              const limitedBytes = await limitedPdf.save();
+              resolve(Buffer.from(limitedBytes).toString('base64'));
+            } catch (limitErr) {
+              console.warn('Failed to limit LMN-only PDF to 3 pages after merge error:', limitErr);
+              resolve(lmnBuffer.toString('base64'));
+            }
           }
         } else {
-          resolve(lmnBuffer.toString('base64'));
+          // No HSA form: enforce a maximum of 3 pages on LMN PDF
+          try {
+            const lmnLoaded = await PDFLibDocument.load(lmnBuffer);
+            const limitedPdf = await PDFLibDocument.create();
+            const pageIndices = lmnLoaded.getPageIndices().slice(0, 3);
+            const limitedPages = await limitedPdf.copyPages(lmnLoaded, pageIndices);
+            limitedPages.forEach((p) => limitedPdf.addPage(p));
+            const limitedBytes = await limitedPdf.save();
+            resolve(Buffer.from(limitedBytes).toString('base64'));
+          } catch (limitErr) {
+            console.warn('Failed to limit LMN PDF to 3 pages, returning original:', limitErr);
+            resolve(lmnBuffer.toString('base64'));
+          }
         }
       });
       doc.on('error', reject);
