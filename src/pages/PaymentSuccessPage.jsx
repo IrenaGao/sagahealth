@@ -48,7 +48,7 @@ export default function PaymentSuccessPage() {
               {paymentOption === 'lmn-and-service' && (
                 <span className="text-gray-600">, and your service payment has also been successfully completed.</span>
               )}
-              <span>You will receive a confirmation email shortly</span>
+              <span>. You will receive a confirmation email shortly</span>
               {paymentOption !== 'lmn-and-service' && '.'}
             </p>
           )}

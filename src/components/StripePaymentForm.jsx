@@ -20,14 +20,16 @@ export default function StripePaymentForm({ amount, onPaymentSuccess, onPaymentE
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!stripe || !elements) {
+    if (!stripe || !elements || isSubmitting || isProcessing) {
       return;
     }
 
+    setIsSubmitting(true);
     setError(null);
 
     // Create payment intent
@@ -68,13 +70,16 @@ export default function StripePaymentForm({ amount, onPaymentSuccess, onPaymentE
       if (stripeError) {
         setError(stripeError.message);
         onPaymentError(stripeError.message);
+        setIsSubmitting(false);
       } else if (paymentIntent.status === 'succeeded') {
+        // Keep isSubmitting true until parent handles success
         onPaymentSuccess(paymentIntentId, paymentIntent);
       }
     } catch (err) {
       const errorMessage = err.message || 'Payment failed';
       setError(errorMessage);
       onPaymentError(errorMessage);
+      setIsSubmitting(false);
     }
   };
 
@@ -95,14 +100,14 @@ export default function StripePaymentForm({ amount, onPaymentSuccess, onPaymentE
       
       <button
         type="submit"
-        disabled={!stripe || isProcessing}
+        disabled={!stripe || isProcessing || isSubmitting}
         className={`w-full px-6 py-3 rounded-lg font-semibold text-white ${
-          !stripe || isProcessing
+          !stripe || isProcessing || isSubmitting
             ? 'bg-gray-400 cursor-not-allowed'
             : 'bg-blue-600 hover:bg-blue-700'
         }`}
       >
-        {isProcessing ? 'Processing...' : `Pay $${amount.toFixed(2)}`}
+        {isProcessing || isSubmitting ? 'Processing...' : `Pay $${amount.toFixed(2)}`}
       </button>
     </form>
   );
