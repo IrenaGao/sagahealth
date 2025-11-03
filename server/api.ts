@@ -33,10 +33,13 @@ app.post('/api/create-payment-intent', async (req, res) => {
   try {
     const { amount, currency = 'usd', metadata = {} } = req.body;
     
+    console.log('Creating payment intent for amount:', amount);
+    
     if (!amount || amount <= 0) {
       return res.status(400).json({ error: 'Invalid amount' });
     }
 
+    // Create payment intent (destination charge disabled for test mode)
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // Convert to cents
       currency,
@@ -44,11 +47,14 @@ app.post('/api/create-payment-intent', async (req, res) => {
       automatic_payment_methods: {
         enabled: true,
       },
-      transfer_data: {
-        destination: 'acct_1SOnkpIWEFJmAlLf',
-      },
-      application_fee_amount: Math.round(amount * 100 * 0.075), // 7.5% application fee
+      // Note: Uncomment these when using live keys with connected account
+      // transfer_data: {
+      //   destination: 'acct_1SOnkpIWEFJmAlLf',
+      // },
+      // application_fee_amount: Math.round(amount * 100 * 0.075), // 7.5% fee
     });
+
+    console.log('Payment intent created successfully:', paymentIntent.id);
 
     res.json({
       clientSecret: paymentIntent.client_secret,
@@ -56,7 +62,11 @@ app.post('/api/create-payment-intent', async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating payment intent:', error);
-    res.status(500).json({ error: 'Failed to create payment intent' });
+    console.error('Error details:', error.message, error.type, error.code);
+    res.status(500).json({ 
+      error: 'Failed to create payment intent',
+      details: error.message 
+    });
   }
 });
 
