@@ -20,7 +20,14 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:5173', // Local development
+    'https://sagahealth.vercel.app', // Production frontend
+    /\.vercel\.app$/, // All Vercel preview deployments
+  ],
+  credentials: true
+}));
 app.use(express.json());
 
 // Health check endpoint
@@ -238,7 +245,7 @@ app.post('/api/generate-lmn', async (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`LMN API server running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`LMN API server running on port ${PORT}`);
 });
 
