@@ -80,8 +80,8 @@ export default function WellnessMarketplace() {
             rating: provider.rating || null,
             reviewCount: provider.num_reviews || 0,
             address: provider.address || '',
-            // Placeholder values for optional fields
-            image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=450&fit=crop',
+            // Use provider image or default fallback
+            image: provider.image || 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=450&fit=crop',
             neighborhood: '',
             city: '',
             coordinates: coordinates
