@@ -20,7 +20,7 @@ export default function SearchBar({
           </div>
           
           {/* Search Input */}
-          <div className="w-full sm:w-96 md:w-[500px] lg:w-[600px]">
+          <div className="flex-1 sm:w-96 md:w-[500px] lg:w-[600px]">
             <input
               type="text"
               placeholder="Search wellness services, locations..."
@@ -29,6 +29,16 @@ export default function SearchBar({
               className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900 placeholder-gray-500"
             />
           </div>
+
+          {/* Link to Main Site */}
+          <a
+            href="https://mysagahealth.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-shrink-0 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg transition-colors whitespace-nowrap"
+          >
+            Visit Site
+          </a>
         </div>
         
         {/* Category Chips - Aligned with search bar */}
