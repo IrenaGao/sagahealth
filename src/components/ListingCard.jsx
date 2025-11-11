@@ -24,17 +24,17 @@ export default function ListingCard({ listing, isHighlighted, onClick }) {
   return (
     <div
       onClick={handleCardClick}
-      className={`bg-white rounded-xl overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 flex flex-col sm:flex-row ${
+      className={`bg-white rounded-xl overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 flex flex-col sm:flex-row sm:h-48 ${
         isHighlighted ? 'ring-2 ring-emerald-500 shadow-lg' : 'shadow-md'
       }`}
     >
       {/* Image - Left side on desktop, top on mobile */}
       {listing.image && (
-        <div className="relative w-full sm:w-1/4 h-48 sm:h-auto flex-shrink-0">
+        <div className="relative w-full sm:w-1/4 h-48 flex-shrink-0">
           <img
             src={listing.image}
             alt={listing.name}
-            className="object-cover w-full h-full sm:rounded-l-xl"
+            className="object-cover w-full h-full"
           />
         </div>
       )}

@@ -94,13 +94,17 @@ export default function BookingPage() {
           name: service.service_type || 'Service',
           serviceType: service.service_type, // Store service type for LMN form
           duration: formatDuration(service.duration_in_mins || 60),
+          durationInMins: service.duration_in_mins || 60, // Store raw minutes for sorting
           description: `${service.service_type} session`,
           url: service.booking_link || '',
           icon: getServiceIcon(service.service_type),
           price: service.service_pricing || null,
         }));
         
-        setBookingOptions(options);
+        // Sort by duration (shortest to longest)
+        const sortedOptions = options.sort((a, b) => a.durationInMins - b.durationInMins);
+        
+        setBookingOptions(sortedOptions);
       }
     } catch (err) {
       setError(`Failed to fetch: ${err.message}`);
@@ -189,9 +193,6 @@ export default function BookingPage() {
               </svg>
               {service.address}
             </p>
-          )}
-          {service.description && (
-            <p className="text-gray-600 mt-3">{service.description}</p>
           )}
         </div>
 
