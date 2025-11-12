@@ -116,7 +116,7 @@ export default function WellnessMarketplace() {
         provider.categories?.some(cat => cat.toLowerCase().includes(searchQuery.toLowerCase()))
 
       const matchesCategory = selectedCategory === 'All' || 
-        provider.categories?.includes(selectedCategory)
+        provider.categories?.some(cat => cat.toLowerCase() === selectedCategory.toLowerCase())
 
       console.log('Provider:', provider.name, 'matchesSearch:', matchesSearch, 'matchesCategory:', matchesCategory, 'categories:', provider.categories)
       

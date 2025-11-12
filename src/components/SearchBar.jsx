@@ -1,4 +1,4 @@
-const categories = ['All', 'Gym', 'Massage', 'Pilates', 'Yoga', 'Spa', 'Meditation'];
+const categories = ['All', 'Gym', 'Massage', 'Pilates', 'Yoga', 'Spa'];
 
 export default function SearchBar({
   searchQuery,

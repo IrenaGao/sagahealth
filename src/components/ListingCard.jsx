@@ -99,9 +99,10 @@ export default function ListingCard({ listing, isHighlighted, onClick }) {
               const urlFriendlyName = toUrlFriendly(listing.name || listing.business_name || `service-${listing.id}`);
               navigate(`/book/${urlFriendlyName}`);
             }}
-            className="inline-flex items-center text-sm font-medium text-emerald-600 hover:text-emerald-700 mb-2"
+            className="inline-flex items-center gap-2 text-sm font-medium text-emerald-600 hover:text-emerald-700 mb-2"
           >
-            📅 Book Now →
+            <span>📅</span>
+            <span>Book Now →</span>
           </button>
         </div>
       </div>

@@ -72,6 +72,7 @@ export default function BookingPage() {
         name: providerData.business_name || 'Wellness Service',
         categories: categories,
         description: providerData.short_summary || '',
+        complete: providerData.complete !== false, // Default to true if not specified
         address: providerData.address || '',
         rating: providerData.rating || null,
         reviewCount: providerData.num_reviews || 0,
@@ -198,15 +199,32 @@ export default function BookingPage() {
 
         {/* Booking Options */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
-          <div className="mb-12">
-            <h2 className="text-3xl font-extrabold text-gray-900 flex items-center gap-3 mb-2">
-              <span className="text-3xl">📅</span>
-              Select Your Service
-            </h2>
-            <p className="text-gray-600 text-base">
-              Choose a service to view available appointment times
-            </p>
-          </div>
+          {!service.complete ? (
+            // Coming Soon Message
+            <div className="text-center py-16">
+              <div className="text-6xl mb-4">🚧</div>
+              <h2 className="text-3xl font-extrabold text-gray-900 mb-4">Coming Soon</h2>
+              <p className="text-gray-600 text-lg mb-8">
+                This provider is currently setting up their booking system. Check back soon!
+              </p>
+              <button
+                onClick={() => navigate('/')}
+                className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg transition-colors"
+              >
+                Back to Marketplace
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="mb-12">
+                <h2 className="text-3xl font-extrabold text-gray-900 flex items-center gap-3 mb-2">
+                  <span className="text-3xl">📅</span>
+                  Select Your Service
+                </h2>
+                <p className="text-gray-600 text-base">
+                  Choose a service to view available appointment times
+                </p>
+              </div>
 
           {/* Massage Therapy Section */}
           <div className="mb-8">
@@ -301,9 +319,12 @@ export default function BookingPage() {
               ))}
             </div>
           </div>
+            </>
+          )}
         </div>
 
         {/* Help Text */}
+        {service.complete && (
         <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
           <div className="flex gap-3">
             <svg className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -321,6 +342,7 @@ export default function BookingPage() {
             </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   );
