@@ -4,6 +4,7 @@ import { generateLMN } from './lmn-generator.js';
 import { generateLMNPDFBuffer } from './utils/pdfGenerator.js';
 import { createSignatureRequest, createSignwellWebhook } from './utils/signwellService.js';
 import stripe from './stripe.js';
+import { Resend } from 'resend';
 import * as dotenv from 'dotenv';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -18,6 +19,7 @@ dotenv.config({ path: join(__dirname, '../.env') });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const resend = new Resend(process.env.RESEND_API_KEY || '');
 
 // Middleware
 app.use(cors({
@@ -36,14 +38,33 @@ app.get('/api/health', (req, res) => {
 });
 
 // SignWell webhook receiver - handles document events
-app.post('/api/signwell/webhook', (req, res) => {
+app.post('/api/signwell/webhook', async (req, res) => {
   try {
     const event = req.body;
     console.log('Received SignWell webhook event:', JSON.stringify(event, null, 2));
 
-    if (event?.event === 'document.completed') {
-      console.log('SignWell document completed:', event?.data?.id || event?.data?.document_id);
-      // TODO: update database or notify user here if needed
+    if (event?.type === 'document_completed') {
+      const docId = event?.data?.id || event?.document_id;
+      console.log('SignWell document completed:', docId);
+
+      // Send notification email via Resend
+      if (!process.env.RESEND_API_KEY) {
+        console.warn('RESEND_API_KEY is not set; skipping email notification.');
+      } else {
+        try {
+          await resend.emails.send({
+            from: 'Saga Health <support@mysagahealth.com>',
+            to: 'irenagao2013@gmail.com',
+            subject: 'LMN signed on SignWell',
+            text: `A Letter of Medical Necessity has been signed.\n\nSignWell document ID: ${
+              docId || 'unknown'
+            }\n\nRaw event payload:\n${JSON.stringify(event, null, 2)}`,
+          });
+          console.log('Notification email sent to irenagao2013@gmail.com');
+        } catch (emailErr) {
+          console.error('Failed to send notification email via Resend:', emailErr);
+        }
+      }
     }
 
     // Respond 200 so SignWell knows we received the event
