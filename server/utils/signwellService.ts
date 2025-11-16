@@ -50,7 +50,7 @@ export async function createSignatureRequest(params: SignatureRequestParams): Pr
     });
     
     const signatureRequestData = {
-      test_mode: false, // Set to false for production
+      test_mode: true, // Set to false for production
       name: `LMN for ${recipientName} - ${currentDate}`,
       draft: false,
       recipients: [
