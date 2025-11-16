@@ -50,7 +50,7 @@ export async function createSignatureRequest(params: SignatureRequestParams): Pr
     });
     
     const signatureRequestData = {
-      test_mode: true, // Set to false for production
+      test_mode: false, // Set to false for production
       name: `LMN for ${recipientName} - ${currentDate}`,
       draft: false,
       recipients: [
@@ -178,10 +178,11 @@ export async function createSignwellWebhook(callbackUrl: string): Promise<any> {
       throw new Error('Callback URL is required to create a SignWell webhook');
     }
 
-    console.log('Creating SignWell webhook for URL:', callbackUrl);
+    console.log('Creating SignWell webhook for callback URL:', callbackUrl);
 
+    // Per SignWell API, the field name must be `callback_url`, not `url`
     const payload = {
-      url: callbackUrl,
+      callback_url: callbackUrl,
       events: ['document.completed'],
     };
 
