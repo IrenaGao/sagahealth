@@ -50,6 +50,10 @@ app.post('/api/signwell/webhook', async (req, res) => {
       const docId = payload?.data?.object?.id;
       console.log('SignWell document completed:', docId);
 
+      // Try to infer the recipient email from the SignWell payload (falls back to your admin email)
+      const recipientEmail =
+        payload?.data?.object?.recipients?.[0]?.email || 'irenagao2013@gmail.com';
+
       // Attempt to fetch the signed PDF from SignWell
       let attachments: { filename: string; content: string; contentType: string }[] = [];
       if (docId) {
@@ -85,14 +89,15 @@ app.post('/api/signwell/webhook', async (req, res) => {
         try {
           await resend.emails.send({
             from: 'Saga Health <support@mysagahealth.com>',
-            to: 'irenagao2013@gmail.com',
+            to: recipientEmail,
             subject: 'Your Letter of Medical Necessity for HSA Coverage is Ready!',
             text:
-              `Congrats! A licensed practitioner has reviewed the information submitted in your form and has recommended the service you purchased to treat or prevent the specific medical conditions you identified.\n\n
-              In order to use your pre-tax HSA, you'll need to submit a reimbursement claim to your HSA administrator. Be sure to submit both your purchase receipt and your Letter of Medical Necessity, which is attached to this email. Feel free to respond back to this email if you have any questions!`,
+              "Congrats! A licensed practitioner has reviewed the information submitted in your form and has recommended the service you purchased to treat or prevent the specific medical conditions you identified."+
+              "\n\nIn order to use your pre-tax HSA, you'll need to submit a reimbursement claim to your HSA administrator. Be sure to submit both your purchase receipt and your Letter of Medical Necessity, which is attached to this email. Feel free to respond back to this email if you have any questions!"+
+              "\n\nSincerely,\nThe Saga Health Team",
             attachments: attachments.length ? attachments : undefined,
           });
-          console.log('Notification email with LMN attachment sent to irenagao2013@gmail.com');
+          console.log('Notification email with LMN attachment sent to '+recipientEmail);
         } catch (emailErr) {
           console.error('Failed to send notification email via Resend:', emailErr);
         }
@@ -309,7 +314,8 @@ app.post('/api/generate-lmn', async (req, res) => {
     const signwellResult = await createSignatureRequest({
       pdfBase64,
       fileName: `LMN_${firstName}_${lastName}_${new Date().toISOString().split('T')[0]}.pdf`,
-      recipientEmail: 'irenagao2013@gmail.com', // Fixed recipient email
+      // Send the LMN to the email the user provided in the form
+      recipientEmail: email,
       recipientName: `${firstName} ${lastName}`,
       subject: 'Please sign your Letter of Medical Necessity',
       message: `Hi ${firstName}, please review and sign your Letter of Medical Necessity for ${hsaProvider}. This document is required for HSA/FSA reimbursement.`
@@ -323,7 +329,7 @@ app.post('/api/generate-lmn', async (req, res) => {
       message: 'LMN generated and sent for signature',
       signatureRequest: {
         documentGroupId: signwellResult.documentGroupId,
-        sentTo: 'irenagao2013@gmail.com'
+        sentTo: email
       }
     });
 
