@@ -59,9 +59,8 @@ app.post('/api/signwell/webhook', async (req, res) => {
       if (docId) {
         try {
           const pdfResponse = await axios.get(
-            `${process.env.SIGNWELL_API_URL || 'https://www.signwell.com/api/v1'}/documents/${docId}/download`,
+            `${process.env.SIGNWELL_API_URL || 'https://www.signwell.com/api/v1'}/documents/${docId}/completed_pdf/`,
             {
-              params: { file_type: 'pdf' },
               responseType: 'arraybuffer',
               headers: {
                 'X-Api-Key': process.env.SIGNWELL_API_KEY || '',
