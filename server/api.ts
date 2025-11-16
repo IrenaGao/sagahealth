@@ -47,7 +47,7 @@ app.post('/api/signwell/webhook', async (req, res) => {
     const eventType = payload?.event?.type;
 
     if (eventType === 'document_completed') {
-      const docId = payload?.data?.id || payload?.document_id;
+      const docId = payload?.data?.object?.id;
       console.log('SignWell document completed:', docId);
 
       // Attempt to fetch the signed PDF from SignWell
