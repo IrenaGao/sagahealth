@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { generateLMN } from './lmn-generator.js';
 import { generateLMNPDFBuffer } from './utils/pdfGenerator.js';
-import { createSignatureRequest } from './utils/signwellService.js';
+import { createSignatureRequest, createSignwellWebhook } from './utils/signwellService.js';
 import stripe from './stripe.js';
 import * as dotenv from 'dotenv';
 import { join, dirname } from 'path';
@@ -33,6 +33,45 @@ app.use(express.json());
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
+});
+
+// SignWell webhook receiver - handles document events
+app.post('/api/signwell/webhook', (req, res) => {
+  try {
+    const event = req.body;
+    console.log('Received SignWell webhook event:', JSON.stringify(event, null, 2));
+
+    if (event?.event === 'document.completed') {
+      console.log('SignWell document completed:', event?.data?.id || event?.data?.document_id);
+      // TODO: update database or notify user here if needed
+    }
+
+    // Respond 200 so SignWell knows we received the event
+    res.status(200).json({ received: true });
+  } catch (error) {
+    console.error('Error handling SignWell webhook:', error);
+    res.status(500).json({ error: 'Failed to handle webhook' });
+  }
+});
+
+// Helper route to create a SignWell webhook (run once)
+app.post('/api/signwell/create-webhook', async (req, res) => {
+  try {
+    // Prefer an explicit webhook URL from env, otherwise build from base URL + path
+    const baseUrl = process.env.SIGNWELL_WEBHOOK_BASE_URL || process.env.PUBLIC_API_BASE_URL;
+    const callbackUrl = baseUrl
+      ? `${baseUrl.replace(/\/+$/, '')}/api/signwell/webhook`
+      : `http://localhost:${PORT}/api/signwell/webhook`;
+
+    const result = await createSignwellWebhook(callbackUrl);
+    res.json({ success: true, webhook: result, callbackUrl });
+  } catch (error: any) {
+    console.error('Error creating SignWell webhook:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to create SignWell webhook',
+    });
+  }
 });
 
 // Stripe payment endpoints

@@ -167,3 +167,43 @@ export async function createSignatureRequest(params: SignatureRequestParams): Pr
   }
 }
 
+// Create a webhook in SignWell for document completion events
+export async function createSignwellWebhook(callbackUrl: string): Promise<any> {
+  try {
+    if (!SIGNWELL_API_KEY) {
+      throw new Error('SIGNWELL_API_KEY is not configured');
+    }
+
+    if (!callbackUrl) {
+      throw new Error('Callback URL is required to create a SignWell webhook');
+    }
+
+    console.log('Creating SignWell webhook for URL:', callbackUrl);
+
+    const payload = {
+      url: callbackUrl,
+      events: ['document.completed'],
+    };
+
+    const response = await axios.post(
+      `${SIGNWELL_API_URL}/hooks/`,
+      payload,
+      {
+        headers: {
+          'X-Api-Key': SIGNWELL_API_KEY,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    console.log('SignWell webhook created:', response.data?.id || response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('SignWell Webhook Error:', error.response?.data || error.message);
+    throw new Error(
+      `Failed to create SignWell webhook: ${error.response?.data?.message || error.message}`
+    );
+  }
+}
+
+
