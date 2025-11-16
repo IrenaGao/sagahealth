@@ -43,7 +43,7 @@ app.post('/api/signwell/webhook', async (req, res) => {
     const event = req.body;
     console.log('Received SignWell webhook event:', JSON.stringify(event, null, 2));
 
-    if (event?.type === 'document_completed') {
+    if (event?.event?.type === 'document_completed') {
       const docId = event?.data?.id || event?.document_id;
       console.log('SignWell document completed:', docId);
 
