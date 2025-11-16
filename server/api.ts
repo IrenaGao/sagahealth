@@ -4,6 +4,7 @@ import { generateLMN } from './lmn-generator.js';
 import { generateLMNPDFBuffer } from './utils/pdfGenerator.js';
 import { createSignatureRequest, createSignwellWebhook } from './utils/signwellService.js';
 import stripe from './stripe.js';
+import axios from 'axios';
 import { Resend } from 'resend';
 import * as dotenv from 'dotenv';
 import { join, dirname } from 'path';
@@ -40,12 +41,42 @@ app.get('/api/health', (req, res) => {
 // SignWell webhook receiver - handles document events
 app.post('/api/signwell/webhook', async (req, res) => {
   try {
-    const event = req.body;
-    console.log('Received SignWell webhook event:', JSON.stringify(event, null, 2));
+    const payload = req.body;
+    console.log('Received SignWell webhook event:', JSON.stringify(payload, null, 2));
 
-    if (event?.event?.type === 'document_completed') {
-      const docId = event?.data?.id || event?.document_id;
+    const eventType = payload?.event?.type;
+
+    if (eventType === 'document_completed') {
+      const docId = payload?.data?.id || payload?.document_id;
       console.log('SignWell document completed:', docId);
+
+      // Attempt to fetch the signed PDF from SignWell
+      let attachments: { filename: string; content: string; contentType: string }[] = [];
+      if (docId) {
+        try {
+          const pdfResponse = await axios.get(
+            `${process.env.SIGNWELL_API_URL || 'https://www.signwell.com/api/v1'}/documents/${docId}/download`,
+            {
+              params: { file_type: 'pdf' },
+              responseType: 'arraybuffer',
+              headers: {
+                'X-Api-Key': process.env.SIGNWELL_API_KEY || '',
+              },
+            }
+          );
+
+          const pdfBuffer = Buffer.from(pdfResponse.data);
+          attachments.push({
+            filename: `LMN_${docId}.pdf`,
+            content: pdfBuffer.toString('base64'),
+            contentType: 'application/pdf',
+          });
+
+          console.log('Fetched signed LMN PDF from SignWell for attachment');
+        } catch (pdfErr) {
+          console.error('Failed to fetch signed LMN PDF from SignWell:', pdfErr);
+        }
+      }
 
       // Send notification email via Resend
       if (!process.env.RESEND_API_KEY) {
@@ -55,12 +86,13 @@ app.post('/api/signwell/webhook', async (req, res) => {
           await resend.emails.send({
             from: 'Saga Health <support@mysagahealth.com>',
             to: 'irenagao2013@gmail.com',
-            subject: 'LMN signed on SignWell',
-            text: `A Letter of Medical Necessity has been signed.\n\nSignWell document ID: ${
-              docId || 'unknown'
-            }\n\nRaw event payload:\n${JSON.stringify(event, null, 2)}`,
+            subject: 'Your Letter of Medical Necessity for HSA Coverage is Ready!',
+            text:
+              `Congrats! A licensed practitioner has reviewed the information submitted in your form and has recommended the service you purchased to treat or prevent the specific medical conditions you identified.\n\n
+              In order to use your pre-tax HSA, you'll need to submit a reimbursement claim to your HSA administrator. Be sure to submit both your purchase receipt and your Letter of Medical Necessity, which is attached to this email. Feel free to respond back to this email if you have any questions!`,
+            attachments: attachments.length ? attachments : undefined,
           });
-          console.log('Notification email sent to irenagao2013@gmail.com');
+          console.log('Notification email with LMN attachment sent to irenagao2013@gmail.com');
         } catch (emailErr) {
           console.error('Failed to send notification email via Resend:', emailErr);
         }
