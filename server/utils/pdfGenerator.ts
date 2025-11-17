@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { PDFDocument as PDFLibDocument } from 'pdf-lib';
 import { fillHealthEquityForm } from './healthEquityFormHelper.js';
 import { fillOptumForm } from './optumFormHelper.js';
+import { fillHSABankForm } from './hsaBankFormHelper.js';
 
 interface LMNContent {
   treatment?: string;
@@ -128,6 +129,13 @@ export async function generateLMNPDFBuffer(lmnData: string, userInfo: UserInfo):
               const hsaPages = await mergedPdf.copyPages(filledHsaPdf, filledHsaPdf.getPageIndices());
               hsaPages.forEach((page) => mergedPdf.addPage(page));
               console.log('Successfully filled and added Optum form to merged PDF');
+            } else if (userInfo.hsaProvider === 'HSA Bank') {
+              // Fill HSA Bank form with text tags
+              console.log('Filling HSA Bank form with text tags');
+              const filledHsaPdf = await fillHSABankForm(hsaPdf);
+              const hsaPages = await mergedPdf.copyPages(filledHsaPdf, filledHsaPdf.getPageIndices());
+              hsaPages.forEach((page) => mergedPdf.addPage(page));
+              console.log('Successfully filled and added HSA Bank form to merged PDF');
             } else {
               // For other providers, just copy the pages without filling
               const hsaPages = await mergedPdf.copyPages(hsaPdf, hsaPdf.getPageIndices());
