@@ -24,27 +24,30 @@ export default function PaymentPage() {
     console.log('Payment successful:', paymentIntent);
     setIsProcessing(true);
     
-    try {
-      if (isServiceOnly) {
-        // Skip LMN generation, just show payment success
-        navigate('/payment-success', {
-          state: {
-            signatureRequest: undefined,
-            message: 'Service payment completed',
-            paymentOption: 'service-only',
-            formData: finalFormData,
-            paymentIntentId,
-            paymentTotal: dynamicServicePrice.toFixed(2)
-          }
-        });
-        return;
+    // Navigate immediately to success page
+    const paymentTotal = isServiceOnly 
+      ? dynamicServicePrice.toFixed(2)
+      : (paymentOption === 'lmn-and-service' ? (20 + dynamicServicePrice).toFixed(2) : '20.00');
+    
+    navigate('/payment-success', {
+      state: {
+        signatureRequest: undefined, // Will be populated by webhook/background process
+        message: isServiceOnly ? 'Service payment completed' : 'Payment processed successfully',
+        paymentOption: isServiceOnly ? 'service-only' : paymentOption,
+        formData: finalFormData,
+        paymentIntentId,
+        paymentTotal,
+        lmnGenerating: !isServiceOnly // Flag to indicate LMN is being generated
       }
-
-      // Proceed with LMN generation after successful payment
-      console.log('Payment successful! Generating LMN...');
+    });
+    
+    // Trigger LMN generation in background (don't wait for it)
+    if (!isServiceOnly) {
+      console.log('Payment successful! Generating LMN in background...');
       console.log('Sending form data to API:', finalFormData);
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/generate-lmn`, {
+      // Fire and forget - don't await
+      fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/generate-lmn`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -56,34 +59,27 @@ export default function PaymentPage() {
           paymentIntentId: paymentIntentId,
           paymentAmount: paymentIntent.amount / 100
         }),
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log('LMN generation successful:', result);
-        
-        // Redirect to success page with enhanced state
-        navigate('/payment-success', { 
-          state: { 
-            signatureRequest: result.signatureRequest,
-            message: result.message,
-            paymentOption: paymentOption,
-            formData: finalFormData,
-            paymentIntentId: paymentIntentId,
-            paymentTotal: (paymentOption === 'lmn-and-service' ? (20 + dynamicServicePrice) : 20).toFixed(2)
+      })
+        .then(response => {
+          if (response.ok) {
+            return response.json();
+          } else {
+            return response.json().then(errorData => {
+              throw new Error(errorData.error || errorData.message || 'Unknown error');
+            });
           }
+        })
+        .then(result => {
+          console.log('LMN generation successful:', result);
+          // LMN generation completed - webhook will handle email notification
+        })
+        .catch(error => {
+          console.error('LMN generation failed (background):', error);
+          // Log error but don't block user - payment was successful
         });
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('API Error:', errorData);
-        throw new Error(`Failed to generate LMN: ${errorData.error || errorData.message || 'Unknown error'}`);
-      }
-    } catch (error) {
-      console.error('LMN generation failed:', error);
-      alert(`Payment successful but LMN generation failed: ${error.message}`);
-    } finally {
-      setIsProcessing(false);
     }
+    
+    setIsProcessing(false);
   };
 
   const handlePaymentError = (errorMessage) => {

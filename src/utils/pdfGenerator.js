@@ -218,7 +218,7 @@ export function generateLMNPDF(lmnData, userInfo) {
     doc.setFont('times', 'bold');
     doc.text('___________________________________', margin, yPosition);
     yPosition += 6;
-    doc.text('Medical Provider', margin, yPosition);
+    doc.text('Derek Yan, MD', margin, yPosition);
     yPosition += 5;
     doc.setFont('times', 'normal');
     doc.text('Saga Health Medical Services', margin, yPosition);

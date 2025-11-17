@@ -5,6 +5,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { PDFDocument as PDFLibDocument } from 'pdf-lib';
 import { fillHealthEquityForm } from './healthEquityFormHelper.js';
+import { fillOptumForm } from './optumFormHelper.js';
 
 interface LMNContent {
   treatment?: string;
@@ -120,6 +121,13 @@ export async function generateLMNPDFBuffer(lmnData: string, userInfo: UserInfo):
               const hsaPages = await mergedPdf.copyPages(filledHsaPdf, filledHsaPdf.getPageIndices());
               hsaPages.forEach((page) => mergedPdf.addPage(page));
               console.log('Successfully filled and added HealthEquity form to merged PDF');
+            } else if (userInfo.hsaProvider === 'Optum Bank') {
+              // Fill Optum form with text annotations
+              console.log('Filling Optum form with text annotations');
+              const filledHsaPdf = await fillOptumForm(hsaPdf);
+              const hsaPages = await mergedPdf.copyPages(filledHsaPdf, filledHsaPdf.getPageIndices());
+              hsaPages.forEach((page) => mergedPdf.addPage(page));
+              console.log('Successfully filled and added Optum form to merged PDF');
             } else {
               // For other providers, just copy the pages without filling
               const hsaPages = await mergedPdf.copyPages(hsaPdf, hsaPdf.getPageIndices());
@@ -213,7 +221,7 @@ export async function generateLMNPDFBuffer(lmnData: string, userInfo: UserInfo):
       // To/From Fields
       doc.text('To: HSA/FSA Administrator', leftMargin, doc.y);
       doc.moveDown(0.5);
-      doc.text('From: Medical Provider', leftMargin, doc.y);
+      doc.text('From: Derek Yan, MD', leftMargin, doc.y);
       doc.moveDown(1);
 
       // Patient Information Box

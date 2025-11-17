@@ -68,9 +68,10 @@ Rules
 * Ground every claim in the provided intake data or policy excerpts when possible.
 * Leave out the physician name, signature, and date.
 * If specific supporting details are missing, make the best plausible case from the information available, while still maintaining a professional clinical tone.
-* For any medical conditions referenced in the LMN, use the search_tool to find the corresponding ICD-10 codes and add these fields to your JSON output:
+* For any medical conditions referenced in the LMN, use the search_tool to find the corresponding ICD-10 codes and add these fields to your JSON output in the Reported Diagnosis section only:
   * "icd_codes": array of ICD-10 codes (e.g., ["F41.9", "J45.9"])
   * "condition": array of condition categories (e.g., ["Anxiety", "Asthma"])
+  * make sure it is in the form condition ([code]), such as "Anxiety (F41.9)"
 * Output must strictly follow the LetterSpec JSON schema with the additional fields above. Do not output anything else outside of the JSON itself.
 * Only include the following five fields in your output: reported_diagnosis, treatment, clinical_rationale, role_the_service_provides, and conclusion. Do not include any other fields.
 * Keep reported diagnosis as only the name of the condition, so just a couple words.

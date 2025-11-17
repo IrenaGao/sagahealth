@@ -37,6 +37,8 @@ export async function createSignatureRequest(params: SignatureRequestParams): Pr
 
     // Step 1: Upload the PDF document
     console.log('Uploading PDF to SignWell...');
+    console.log("RECEIPIENT NAME", recipientName);
+    console.log("RECEIPIENT EMAIL", recipientEmail);
 
     // Step 2: Create signature request
     console.log('Creating signature request...');

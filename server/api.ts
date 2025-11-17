@@ -50,9 +50,10 @@ app.post('/api/signwell/webhook', async (req, res) => {
       const docId = payload?.data?.object?.id;
       console.log('SignWell document completed:', docId);
 
-      // Try to infer the recipient email from the SignWell payload (falls back to your admin email)
+      // Try to infer the recipient email and name from the SignWell payload (falls back to your admin email)
       const recipientEmail =
         payload?.data?.object?.recipients?.[0]?.email || 'irenagao2013@gmail.com';
+      const recipientName = payload?.data?.object?.recipients?.[0]?.name || 'there';
 
       // Attempt to fetch the signed PDF from SignWell
       let attachments: { filename: string; content: string; contentType: string }[] = [];
@@ -91,7 +92,8 @@ app.post('/api/signwell/webhook', async (req, res) => {
             to: recipientEmail,
             subject: 'Your Letter of Medical Necessity for HSA Coverage is Ready!',
             text:
-              "Congrats! A licensed practitioner has reviewed the information submitted in your form and has recommended the service you purchased to treat or prevent the specific medical conditions you identified."+
+              `Congrats ${recipientName}!`+
+              "\n\nA licensed practitioner has reviewed the information submitted in your form and has recommended the service you purchased to treat or prevent the specific medical conditions you identified."+
               "\n\nIn order to use your pre-tax HSA, you'll need to submit a reimbursement claim to your HSA administrator. Be sure to submit both your purchase receipt and your Letter of Medical Necessity, which is attached to this email. Feel free to respond back to this email if you have any questions!"+
               "\n\nSincerely,\nThe Saga Health Team",
             attachments: attachments.length ? attachments : undefined,
