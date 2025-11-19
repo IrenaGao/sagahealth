@@ -6,7 +6,7 @@ import StripePaymentForm from '../components/StripePaymentForm';
 export default function PaymentPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { formData, servicePrice, serviceName, businessName, serviceOnly } = location.state || {};
+  const { formData, servicePrice, serviceName, businessName, serviceOnly, stripeAcctId } = location.state || {};
   
   // Use provided form data
   const finalFormData = formData || {};
@@ -129,6 +129,10 @@ export default function PaymentPage() {
             onPaymentSuccess={handlePaymentSuccess}
             onPaymentError={handlePaymentError}
             isProcessing={isProcessing}
+            stripeAcctId={stripeAcctId}
+            paymentOption={isServiceOnly ? 'service-only' : paymentOption}
+            servicePrice={dynamicServicePrice}
+            receiptEmail={finalFormData.email}
           />
 
             {/* Payment Options */}

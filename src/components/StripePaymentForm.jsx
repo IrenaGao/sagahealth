@@ -16,7 +16,7 @@ const CARD_ELEMENT_OPTIONS = {
   },
 };
 
-export default function StripePaymentForm({ amount, onPaymentSuccess, onPaymentError, isProcessing }) {
+export default function StripePaymentForm({ amount, onPaymentSuccess, onPaymentError, isProcessing, stripeAcctId, paymentOption, servicePrice, receiptEmail }) {
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState(null);
@@ -41,6 +41,10 @@ export default function StripePaymentForm({ amount, onPaymentSuccess, onPaymentE
         },
         body: JSON.stringify({
           amount: amount,
+          stripeAcctId: stripeAcctId,
+          paymentOption: paymentOption,
+          servicePrice: servicePrice,
+          receiptEmail: receiptEmail,
           metadata: {
             source: 'saga-health-lmn'
           }
@@ -72,6 +76,15 @@ export default function StripePaymentForm({ amount, onPaymentSuccess, onPaymentE
         onPaymentError(stripeError.message);
         setIsSubmitting(false);
       } else if (paymentIntent.status === 'succeeded') {
+        // Note: Stripe automatically sends receipt emails when receipt_email is set on the payment intent
+        // In test mode, receipts are NOT sent automatically - check Stripe Dashboard
+        // In live mode, receipts are sent automatically when payment succeeds
+        if (receiptEmail) {
+          console.log('Payment succeeded. Receipt email was set to:', receiptEmail);
+          console.log('Note: In test mode, Stripe does not automatically send receipt emails.');
+          console.log('In live mode, Stripe will automatically send the receipt.');
+        }
+        
         // Keep isSubmitting true until parent handles success
         onPaymentSuccess(paymentIntentId, paymentIntent);
       }

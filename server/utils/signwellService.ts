@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Resend } from 'resend';
 import * as dotenv from 'dotenv';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -9,7 +10,8 @@ const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '../../.env') });
 
 const SIGNWELL_API_KEY = process.env.SIGNWELL_API_KEY;
-const SIGNWELL_API_URL = 'https://www.signwell.com/api/v1';
+const SIGNWELL_API_URL = process.env.SIGNWELL_API_URL || 'https://www.signwell.com/api/v1';
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
 interface SignatureRequestParams {
   pdfBase64: string;
@@ -207,6 +209,97 @@ export async function createSignwellWebhook(callbackUrl: string): Promise<any> {
       `Failed to create SignWell webhook: ${error.response?.data?.message || error.message}`
     );
   }
+}
+
+interface WebhookPayload {
+  event?: {
+    type?: string;
+  };
+  data?: {
+    object?: {
+      id?: string;
+      recipients?: Array<{
+        email?: string;
+        name?: string;
+      }>;
+    };
+  };
+}
+
+interface HandleWebhookResult {
+  received: boolean;
+}
+
+/**
+ * Handles SignWell webhook events, particularly document_completed events
+ * Fetches the signed PDF and sends notification email
+ * @param payload Webhook payload from SignWell
+ * @returns Result indicating webhook was received
+ */
+export async function handleSignwellWebhook(payload: WebhookPayload): Promise<HandleWebhookResult> {
+  const eventType = payload?.event?.type;
+
+  if (eventType === 'document_completed') {
+    const docId = payload?.data?.object?.id;
+    console.log('SignWell document completed:', docId);
+
+    // Try to infer the recipient email and name from the SignWell payload (falls back to admin email)
+    const recipientEmail =
+      payload?.data?.object?.recipients?.[0]?.email || 'irenagao2013@gmail.com';
+    const recipientName = payload?.data?.object?.recipients?.[0]?.name || 'there';
+
+    // Attempt to fetch the signed PDF from SignWell
+    let attachments: { filename: string; content: string; contentType: string }[] = [];
+    if (docId && SIGNWELL_API_KEY) {
+      try {
+        const pdfResponse = await axios.get(
+          `${SIGNWELL_API_URL}/documents/${docId}/completed_pdf/`,
+          {
+            responseType: 'arraybuffer',
+            headers: {
+              'X-Api-Key': SIGNWELL_API_KEY,
+            },
+          }
+        );
+
+        const pdfBuffer = Buffer.from(pdfResponse.data);
+        attachments.push({
+          filename: `LMN_${docId}.pdf`,
+          content: pdfBuffer.toString('base64'),
+          contentType: 'application/pdf',
+        });
+
+        console.log('Fetched signed LMN PDF from SignWell for attachment');
+      } catch (pdfErr) {
+        console.error('Failed to fetch signed LMN PDF from SignWell:', pdfErr);
+      }
+    }
+
+    // Send notification email via Resend
+    if (!RESEND_API_KEY) {
+      console.warn('RESEND_API_KEY is not set; skipping email notification.');
+    } else {
+      try {
+        const resend = new Resend(RESEND_API_KEY);
+        await resend.emails.send({
+          from: 'Saga Health <support@mysagahealth.com>',
+          to: recipientEmail,
+          subject: 'Your Letter of Medical Necessity for HSA Coverage is Ready!',
+          text:
+            `Congrats ${recipientName}!` +
+            "\n\nA licensed practitioner has reviewed the information submitted in your form and has recommended the service you purchased to treat or prevent the specific medical conditions you identified." +
+            "\n\nIn order to use your pre-tax HSA, you'll need to submit a reimbursement claim to your HSA administrator. Be sure to submit both your purchase receipt and your Letter of Medical Necessity, which is attached to this email. Feel free to respond back to this email if you have any questions!" +
+            "\n\nSincerely,\nThe Saga Health Team",
+          attachments: attachments.length ? attachments : undefined,
+        });
+        console.log('Notification email with LMN attachment sent to ' + recipientEmail);
+      } catch (emailErr) {
+        console.error('Failed to send notification email via Resend:', emailErr);
+      }
+    }
+  }
+
+  return { received: true };
 }
 
 

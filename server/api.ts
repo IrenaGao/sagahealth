@@ -2,10 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import { generateLMN } from './lmn-generator.js';
 import { generateLMNPDFBuffer } from './utils/pdfGenerator.js';
-import { createSignatureRequest, createSignwellWebhook } from './utils/signwellService.js';
-import stripe from './stripe.js';
-import axios from 'axios';
-import { Resend } from 'resend';
+import { createSignatureRequest, createSignwellWebhook, handleSignwellWebhook } from './utils/signwellService.js';
+import { createPaymentIntent, confirmPayment, updateReceiptEmail } from './utils/stripeService.js';
 import * as dotenv from 'dotenv';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -20,7 +18,6 @@ dotenv.config({ path: join(__dirname, '../.env') });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const resend = new Resend(process.env.RESEND_API_KEY || '');
 
 // Middleware
 app.use(cors({
@@ -44,69 +41,10 @@ app.post('/api/signwell/webhook', async (req, res) => {
     const payload = req.body;
     console.log('Received SignWell webhook event:', JSON.stringify(payload, null, 2));
 
-    const eventType = payload?.event?.type;
-
-    if (eventType === 'document_completed') {
-      const docId = payload?.data?.object?.id;
-      console.log('SignWell document completed:', docId);
-
-      // Try to infer the recipient email and name from the SignWell payload (falls back to your admin email)
-      const recipientEmail =
-        payload?.data?.object?.recipients?.[0]?.email || 'irenagao2013@gmail.com';
-      const recipientName = payload?.data?.object?.recipients?.[0]?.name || 'there';
-
-      // Attempt to fetch the signed PDF from SignWell
-      let attachments: { filename: string; content: string; contentType: string }[] = [];
-      if (docId) {
-        try {
-          const pdfResponse = await axios.get(
-            `${process.env.SIGNWELL_API_URL || 'https://www.signwell.com/api/v1'}/documents/${docId}/completed_pdf/`,
-            {
-              responseType: 'arraybuffer',
-              headers: {
-                'X-Api-Key': process.env.SIGNWELL_API_KEY || '',
-              },
-            }
-          );
-
-          const pdfBuffer = Buffer.from(pdfResponse.data);
-          attachments.push({
-            filename: `LMN_${docId}.pdf`,
-            content: pdfBuffer.toString('base64'),
-            contentType: 'application/pdf',
-          });
-
-          console.log('Fetched signed LMN PDF from SignWell for attachment');
-        } catch (pdfErr) {
-          console.error('Failed to fetch signed LMN PDF from SignWell:', pdfErr);
-        }
-      }
-
-      // Send notification email via Resend
-      if (!process.env.RESEND_API_KEY) {
-        console.warn('RESEND_API_KEY is not set; skipping email notification.');
-      } else {
-        try {
-          await resend.emails.send({
-            from: 'Saga Health <support@mysagahealth.com>',
-            to: recipientEmail,
-            subject: 'Your Letter of Medical Necessity for HSA Coverage is Ready!',
-            text:
-              `Congrats ${recipientName}!`+
-              "\n\nA licensed practitioner has reviewed the information submitted in your form and has recommended the service you purchased to treat or prevent the specific medical conditions you identified."+
-              "\n\nIn order to use your pre-tax HSA, you'll need to submit a reimbursement claim to your HSA administrator. Be sure to submit both your purchase receipt and your Letter of Medical Necessity, which is attached to this email. Feel free to respond back to this email if you have any questions!"+
-              "\n\nSincerely,\nThe Saga Health Team",
-            attachments: attachments.length ? attachments : undefined,
-          });
-          console.log('Notification email with LMN attachment sent to '+recipientEmail);
-        } catch (emailErr) {
-          console.error('Failed to send notification email via Resend:', emailErr);
-        }
-      }
-    }
+    const result = await handleSignwellWebhook(payload);
 
     // Respond 200 so SignWell knows we received the event
-    res.status(200).json({ received: true });
+    res.status(200).json(result);
   } catch (error) {
     console.error('Error handling SignWell webhook:', error);
     res.status(500).json({ error: 'Failed to handle webhook' });
@@ -136,36 +74,20 @@ app.post('/api/signwell/create-webhook', async (req, res) => {
 // Stripe payment endpoints
 app.post('/api/create-payment-intent', async (req, res) => {
   try {
-    const { amount, currency = 'usd', metadata = {} } = req.body;
+    const { amount, currency = 'usd', metadata = {}, stripeAcctId, paymentOption, servicePrice, receiptEmail } = req.body;
     
-    console.log('Creating payment intent for amount:', amount);
-    
-    if (!amount || amount <= 0) {
-      return res.status(400).json({ error: 'Invalid amount' });
-    }
-
-    // Create payment intent (destination charge disabled for test mode)
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
+    const result = await createPaymentIntent({
+      amount,
       currency,
       metadata,
-      automatic_payment_methods: {
-        enabled: true,
-      },
-      // Note: Uncomment these when using live keys with connected account
-      // transfer_data: {
-      //   destination: 'acct_1SOnkpIWEFJmAlLf',
-      // },
-      // application_fee_amount: Math.round(amount * 100 * 0.075), // 7.5% fee
+      stripeAcctId,
+      paymentOption,
+      servicePrice,
+      receiptEmail,
     });
 
-    console.log('Payment intent created successfully:', paymentIntent.id);
-
-    res.json({
-      clientSecret: paymentIntent.client_secret,
-      paymentIntentId: paymentIntent.id,
-    });
-  } catch (error) {
+    res.json(result);
+  } catch (error: any) {
     console.error('Error creating payment intent:', error);
     console.error('Error details:', error.message, error.type, error.code);
     res.status(500).json({ 
@@ -179,29 +101,37 @@ app.post('/api/confirm-payment', async (req, res) => {
   try {
     const { paymentIntentId } = req.body;
     
+    const result = await confirmPayment(paymentIntentId);
+    res.json(result);
+  } catch (error: any) {
+    console.error('Error confirming payment:', error);
+    res.status(500).json({ error: 'Failed to confirm payment', details: error.message });
+  }
+});
+
+// Endpoint to update receipt email on payment intent
+app.post('/api/update-receipt-email', async (req, res) => {
+  try {
+    const { paymentIntentId, receiptEmail } = req.body;
+    
     if (!paymentIntentId) {
       return res.status(400).json({ error: 'Payment intent ID required' });
     }
-
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
     
-    if (paymentIntent.status === 'succeeded') {
-      res.json({ 
-        success: true, 
-        status: paymentIntent.status,
-        amount: paymentIntent.amount / 100, // Convert back from cents
-        currency: paymentIntent.currency
-      });
-    } else {
-      res.json({ 
-        success: false, 
-        status: paymentIntent.status,
-        error: 'Payment not completed'
-      });
+    if (!receiptEmail) {
+      return res.status(400).json({ error: 'Receipt email required' });
     }
-  } catch (error) {
-    console.error('Error confirming payment:', error);
-    res.status(500).json({ error: 'Failed to confirm payment' });
+    
+    const success = await updateReceiptEmail(paymentIntentId, receiptEmail);
+    
+    if (success) {
+      res.json({ success: true, message: 'Receipt email updated. Stripe will send receipt automatically in live mode.' });
+    } else {
+      res.status(400).json({ error: 'Failed to update receipt email' });
+    }
+  } catch (error: any) {
+    console.error('Error updating receipt email:', error);
+    res.status(500).json({ error: 'Failed to update receipt email', details: error.message });
   }
 });
 
@@ -287,7 +217,7 @@ app.post('/api/generate-lmn', async (req, res) => {
     // Log the generated LMN result
     console.log('\n========== LMN GENERATION COMPLETE ==========');
     console.log('Generated LMN Result:');
-    console.log(lmnResult);
+    // console.log(lmnResult);
     console.log('=============================================\n');
 
     // Generate PDF from LMN (returns base64 string)
@@ -300,7 +230,7 @@ app.post('/api/generate-lmn', async (req, res) => {
       desiredProduct: desiredProduct || 'Wellness service/product',
       businessName: businessName || ''
     });
-    console.log('PDF generated successfully', pdfBase64);
+    // console.log('PDF generated successfully', pdfBase64);
     
     // Save PDF to file
     const pdfFileName = `LMN_hi_${firstName}_${lastName}_${new Date().toISOString().split('T')[0]}.pdf`;
@@ -344,7 +274,7 @@ app.post('/api/generate-lmn', async (req, res) => {
 });
 
 // Start server
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`LMN API server running on port ${PORT}`);
 });
 

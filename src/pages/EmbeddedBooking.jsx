@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
 // Helper function to convert URL-friendly name back to potential business name matches
@@ -31,6 +31,8 @@ export default function EmbeddedBooking() {
   const { businessName } = useParams(); // service business name
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const stripeAcctIdFromState = location.state?.stripeAcctId;
   
   const bookingOptionId = parseInt(searchParams.get('bookingOption'));
   
@@ -39,6 +41,7 @@ export default function EmbeddedBooking() {
   const [bookingOption, setBookingOption] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [stripeAcctId, setStripeAcctId] = useState(stripeAcctIdFromState || null);
   const iframeRef = useRef(null);
 
   // Fetch service details
@@ -81,6 +84,11 @@ export default function EmbeddedBooking() {
         rating: providerData.rating || null,
         reviewCount: providerData.num_reviews || 0,
       });
+      
+      // Set stripe_acct_id from providerData if not already set from navigation state
+      if (!stripeAcctId && providerData.stripe_acct_id) {
+        setStripeAcctId(providerData.stripe_acct_id);
+      }
 
       // Fetch booking options for this provider
       const { data: servicesData, error: servicesError } = await supabase
@@ -126,7 +134,9 @@ export default function EmbeddedBooking() {
     // Navigate to LMN form with service type and price
     const serviceType = bookingOption?.serviceType || 'Wellness service';
     const servicePrice = bookingOption?.price || 80;
-    navigate(`/book/${businessName}/lmn-form?service=${encodeURIComponent(serviceType)}&price=${servicePrice}`);
+    navigate(`/book/${businessName}/lmn-form?service=${encodeURIComponent(serviceType)}&price=${servicePrice}`, {
+      state: { stripeAcctId: stripeAcctId }
+    });
     
     return true;
   };
@@ -312,7 +322,8 @@ export default function EmbeddedBooking() {
                       servicePrice: bookingOption.price || 80,
                       serviceName: bookingOption.name,
                       businessName: service.name,
-                      serviceOnly: true
+                      serviceOnly: true,
+                      stripeAcctId: stripeAcctId
                     } 
                   })}
                   className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"

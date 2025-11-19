@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
 // Helper function to convert URL-friendly name back to potential business name matches
@@ -30,11 +30,14 @@ const getServiceIcon = (serviceType) => {
 export default function BookingPage() {
   const { businessName } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const stripeAcctIdFromState = location.state?.stripeAcctId;
   
   const [service, setService] = useState(null);
   const [bookingOptions, setBookingOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [stripeAcctId, setStripeAcctId] = useState(stripeAcctIdFromState || null);
 
   // Fetch service details
   useEffect(() => {
@@ -77,6 +80,11 @@ export default function BookingPage() {
         rating: providerData.rating || null,
         reviewCount: providerData.num_reviews || 0,
       });
+      
+      // Set stripe_acct_id from providerData if not already set from navigation state
+      if (!stripeAcctId && providerData.stripe_acct_id) {
+        setStripeAcctId(providerData.stripe_acct_id);
+      }
 
       // Fetch booking options for this provider
       const { data: servicesData, error: servicesError } = await supabase
@@ -244,7 +252,9 @@ export default function BookingPage() {
               {bookingOptions.filter(option => option.icon === '💆').map((option) => (
                 <div
                   key={option.id}
-                  onClick={() => navigate(`/book/${businessName}/schedule?bookingOption=${option.id}`)}
+                  onClick={() => navigate(`/book/${businessName}/schedule?bookingOption=${option.id}`, {
+                    state: { stripeAcctId: stripeAcctId }
+                  })}
                   className="group relative bg-gradient-to-br from-emerald-50 to-white border-2 border-gray-200 rounded-xl p-6 hover:border-emerald-500 hover:shadow-lg transition-all duration-200 cursor-pointer"
                 >
                   {/* Service Duration and Price */}
@@ -291,7 +301,9 @@ export default function BookingPage() {
               {bookingOptions.filter(option => option.icon === '💪').map((option) => (
                 <div
                   key={option.id}
-                  onClick={() => navigate(`/book/${businessName}/schedule?bookingOption=${option.id}`)}
+                  onClick={() => navigate(`/book/${businessName}/schedule?bookingOption=${option.id}`, {
+                    state: { stripeAcctId: stripeAcctId }
+                  })}
                   className="group relative bg-gradient-to-br from-emerald-50 to-white border-2 border-gray-200 rounded-xl p-6 hover:border-emerald-500 hover:shadow-lg transition-all duration-200 cursor-pointer"
                 >
                   {/* Service Duration and Price */}

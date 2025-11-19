@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom';
 
 // Helper function to convert URL-friendly name to proper format
 const formatBusinessName = (urlName) => {
@@ -14,9 +14,11 @@ export default function LMNForm() {
   const navigate = useNavigate();
   const { businessName: urlBusinessName } = useParams();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const serviceType = searchParams.get('service') || 'Wellness service';
   const servicePrice = parseFloat(searchParams.get('price')) || 80;
   const businessName = formatBusinessName(urlBusinessName);
+  const stripeAcctId = location.state?.stripeAcctId || null;
   
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 4;
@@ -168,7 +170,8 @@ export default function LMNForm() {
           formData: paymentFormData,
           servicePrice: servicePrice,
           serviceName: serviceType,
-          businessName: businessName
+          businessName: businessName,
+          stripeAcctId: stripeAcctId
         } 
       });
       

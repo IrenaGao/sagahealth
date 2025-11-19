@@ -56,6 +56,7 @@ export default function ServiceDetails() {
           reviewCount: data.num_reviews || 0,
           address: data.address || '',
           image: data.image || 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=1200&h=600&fit=crop',
+          stripeAcctId: data.stripe_acct_id || null,
         };
         setService(mappedData);
         setError(null);
@@ -197,7 +198,9 @@ export default function ServiceDetails() {
           {/* Booking Button */}
           <div className="flex justify-center pt-2">
             <button
-              onClick={() => navigate(`/book/${businessName}`)}
+              onClick={() => navigate(`/book/${businessName}`, { 
+                state: { stripeAcctId: service.stripeAcctId } 
+              })}
               className="w-full sm:w-auto px-8 py-4 bg-emerald-500 text-white text-lg font-semibold rounded-xl shadow-lg hover:bg-emerald-600 transition-all hover:shadow-xl"
             >
               Book Now
