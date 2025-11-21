@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom';
+import StripeCheckoutButton from '../components/StripeCheckoutButton';
+import { supabase } from '../supabaseClient';
 
 // Helper function to convert URL-friendly name to proper format
 const formatBusinessName = (urlName) => {
@@ -13,23 +15,152 @@ const formatBusinessName = (urlName) => {
 export default function LMNForm() {
   const navigate = useNavigate();
   const { businessName: urlBusinessName } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
-  const serviceType = searchParams.get('service') || 'Wellness service';
-  const servicePrice = parseFloat(searchParams.get('price')) || 80;
   const businessName = formatBusinessName(urlBusinessName);
   const stripeAcctId = location.state?.stripeAcctId || null;
   
+  // Get service name, price, and duration from URL, with fallback to localStorage if coming back from cancel
+  const urlServiceType = searchParams.get('service');
+  const urlServicePrice = searchParams.get('price');
+  const urlDuration = searchParams.get('duration');
+  const savedServiceName = localStorage.getItem('lmnServiceName');
+  const savedServicePrice = localStorage.getItem('lmnServicePrice');
+  const savedDuration = localStorage.getItem('lmnDuration');
+  
+  // Use URL params if available, otherwise use saved values, otherwise default
+  const [serviceType, setServiceType] = useState(
+    urlServiceType || savedServiceName || 'Wellness service'
+  );
+  const [servicePrice, setServicePrice] = useState(
+    urlServicePrice ? parseFloat(urlServicePrice) : (savedServicePrice ? parseFloat(savedServicePrice) : 80)
+  );
+  const [duration, setDuration] = useState(
+    urlDuration || savedDuration || '60 min'
+  );
+  
+  // Update URL if service name/price/duration changes and isn't in URL
+  useEffect(() => {
+    if (serviceType && serviceType !== urlServiceType) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set('service', serviceType);
+      newParams.set('price', servicePrice.toString());
+      if (duration) {
+        newParams.set('duration', duration);
+      }
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [serviceType, servicePrice, duration, urlServiceType, searchParams, setSearchParams]);
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('LMNForm - Service type:', serviceType);
+    console.log('LMNForm - Service price:', servicePrice);
+  }, [serviceType, servicePrice]);
+  
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 4;
+  const totalSteps = 3;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
+  const [paymentOption, setPaymentOption] = useState('lmn-only'); // 'lmn-only' | 'lmn-and-service'
+  const [providerAddress, setProviderAddress] = useState('');
+
+  // Fetch provider address
+  useEffect(() => {
+    const fetchProviderAddress = async () => {
+      try {
+        const searchPattern = urlBusinessName.replace(/_/g, ' ');
+        const { data, error } = await supabase
+          .from('providers')
+          .select('address')
+          .ilike('business_name', searchPattern)
+          .single();
+        
+        if (!error && data?.address) {
+          setProviderAddress(data.address);
+        }
+      } catch (err) {
+        console.error('Error fetching provider address:', err);
+      }
+    };
+    
+    fetchProviderAddress();
+  }, [urlBusinessName]);
+
+  // Check if user canceled checkout and restore form data
+  useEffect(() => {
+    if (searchParams.get('canceled') === 'true') {
+      setSubmitError('Payment was canceled. You can try again when ready.');
+      
+      // Restore form data from localStorage
+      const savedFormData = localStorage.getItem('lmnFormData');
+      const savedPaymentOption = localStorage.getItem('lmnPaymentOption');
+      const savedServiceName = localStorage.getItem('lmnServiceName');
+      const savedServicePrice = localStorage.getItem('lmnServicePrice');
+      
+      if (savedFormData) {
+        try {
+          const parsedData = JSON.parse(savedFormData);
+          setFormData(parsedData);
+        } catch (e) {
+          console.error('Failed to parse saved form data:', e);
+        }
+      }
+      
+      if (savedPaymentOption) {
+        setPaymentOption(savedPaymentOption);
+      }
+      
+      // Restore service name, price, and duration from localStorage
+      if (savedServiceName) {
+        setServiceType(savedServiceName);
+        // Update URL to include service name
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set('service', savedServiceName);
+        if (savedServicePrice) {
+          newParams.set('price', savedServicePrice);
+          setServicePrice(parseFloat(savedServicePrice));
+        }
+        if (savedDuration) {
+          newParams.set('duration', savedDuration);
+          setDuration(savedDuration);
+        }
+        newParams.delete('canceled'); // Remove canceled param
+        setSearchParams(newParams, { replace: true });
+      }
+      
+      if (savedServicePrice) {
+        setServicePrice(parseFloat(savedServicePrice));
+      }
+      
+      if (savedDuration) {
+        setDuration(savedDuration);
+      }
+      
+      // Set to step 3 (attestation & payment page) if step param is provided
+      const stepParam = searchParams.get('step');
+      if (stepParam) {
+        const step = parseInt(stepParam, 10);
+        if (step >= 1 && step <= totalSteps) {
+          setCurrentStep(step);
+        }
+      } else {
+        setCurrentStep(3);
+      }
+      
+      // Clear localStorage after restoring (but keep service name/price in URL)
+      localStorage.removeItem('lmnFormData');
+      localStorage.removeItem('lmnPaymentOption');
+      localStorage.removeItem('lmnServicePrice');
+      localStorage.removeItem('lmnServiceName');
+      localStorage.removeItem('lmnDuration');
+    }
+  }, [searchParams, totalSteps, setSearchParams]);
   
   // Form data
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    email: '',
     age: '',
     sex: '',
     hsaProvider: '',
@@ -141,6 +272,12 @@ export default function LMNForm() {
     }
   };
 
+  const handlePaymentError = (errorMessage) => {
+    console.error('Payment failed:', errorMessage);
+    setSubmitError(`Payment failed: ${errorMessage}`);
+    setIsSubmitting(false);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -149,7 +286,7 @@ export default function LMNForm() {
     
     try {
       // Validate form data
-      if (!formData.firstName || !formData.lastName || !formData.email || !formData.age || !formData.hsaProvider || !formData.state) {
+      if (!formData.firstName || !formData.lastName || !formData.age || !formData.hsaProvider || !formData.state) {
         throw new Error('Please fill in all required fields');
       }
       
@@ -157,28 +294,13 @@ export default function LMNForm() {
         throw new Error('Please agree to the attestation');
       }
       
-      // Prepare form data for payment page
-      const paymentFormData = {
-        ...formData,
-        desiredProduct: serviceType,
-        businessName: businessName
-      };
-      
-      // Redirect to payment page with form data and service price
-      navigate('/payment', { 
-        state: { 
-          formData: paymentFormData,
-          servicePrice: servicePrice,
-          serviceName: serviceType,
-          businessName: businessName,
-          stripeAcctId: stripeAcctId
-        } 
-      });
+      // Payment will be handled by StripeCheckoutButton component
+      // No need to navigate - payment button is on this page
+      setIsSubmitting(false);
       
     } catch (error) {
-      console.error('Error preparing form:', error);
+      console.error('Error validating form:', error);
       setSubmitError(error.message);
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -186,13 +308,11 @@ export default function LMNForm() {
   const isStepValid = () => {
     switch (currentStep) {
       case 1:
-        return formData.firstName && formData.lastName && formData.email;
+        return formData.firstName && formData.lastName && formData.age && formData.sex && formData.hsaProvider && formData.state;
       case 2:
-        return formData.age && formData.sex && formData.hsaProvider && formData.state;
-      case 3:
         // Require at least one diagnosed condition for LMN generation
         return formData.diagnosedConditions.length > 0;
-      case 4:
+      case 3:
         return formData.attestation;
       default:
         return false;
@@ -216,7 +336,7 @@ export default function LMNForm() {
             </button>
             
             <button
-              onClick={() => navigate(`/book/${id}/schedule`)}
+              onClick={() => navigate(`/book/${urlBusinessName}/schedule`)}
               className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-2"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -260,10 +380,10 @@ export default function LMNForm() {
           </div>
 
           <form onSubmit={handleSubmit}>
-            {/* Step 1: Personal Information */}
+            {/* Step 1: Personal Information & Demographics */}
             {currentStep === 1 && (
               <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information & Demographics</h3>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
@@ -295,27 +415,6 @@ export default function LMNForm() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email Address *
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    placeholder="john.doe@example.com"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Step 2: Demographics & HSA */}
-            {currentStep === 2 && (
-              <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Demographics & HSA Information</h3>
-                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     How old are you? *
@@ -400,8 +499,8 @@ export default function LMNForm() {
               </div>
             )}
 
-            {/* Step 3: Health Information */}
-            {currentStep === 3 && (
+            {/* Step 2: Health Information */}
+            {currentStep === 2 && (
               <div className="space-y-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Health Information</h3>
                 
@@ -478,10 +577,10 @@ export default function LMNForm() {
               </div>
             )}
 
-            {/* Step 4: Attestation */}
-            {currentStep === 4 && (
+            {/* Step 3: Attestation */}
+            {currentStep === 3 && (
               <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Attestation</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Attestation & Payment</h3>
                 
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
                   <div className="flex gap-3 mb-4">
@@ -521,6 +620,63 @@ export default function LMNForm() {
                     </span>
                   </label>
                 </div>
+
+                {/* Payment Options */}
+                <div className="bg-gray-50 p-6 rounded-lg">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Payment Options</h2>
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="radio"
+                        id="lmn-and-service"
+                        name="paymentOption"
+                        value="lmn-and-service"
+                        checked={paymentOption === 'lmn-and-service'}
+                        onChange={(e) => setPaymentOption(e.target.value)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <label htmlFor="lmn-and-service" className="text-sm font-medium text-gray-900">
+                        Pay for LMN + Appt. together ($20.00 LMN + ${servicePrice.toFixed(2)} Appt. = ${(20 + servicePrice).toFixed(2)} Total)
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="radio"
+                        id="lmn-only"
+                        name="paymentOption"
+                        value="lmn-only"
+                        checked={paymentOption === 'lmn-only'}
+                        onChange={(e) => setPaymentOption(e.target.value)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <label htmlFor="lmn-only" className="text-sm font-medium text-gray-900">
+                        Pay for LMN only - I'll book the appt. later but want to get my LMN now ($20.00)
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment Button */}
+                <div className="pt-4">
+                  <StripeCheckoutButton
+                    amount={paymentOption === 'lmn-and-service' ? (20 + servicePrice) : 20}
+                    onError={handlePaymentError}
+                    stripeAcctId={stripeAcctId}
+                    paymentOption={paymentOption}
+                    servicePrice={servicePrice}
+                    serviceName={serviceType}
+                    duration={duration}
+                    firstHealthCondition={formData.diagnosedConditions?.[0] || null}
+                    businessName={businessName}
+                    businessAddress={providerAddress}
+                    receiptEmail={null}
+                    formData={{
+                      ...formData,
+                      desiredProduct: serviceType,
+                      businessName: businessName
+                    }}
+                  />
+                </div>
               </div>
             )}
 
@@ -559,31 +715,10 @@ export default function LMNForm() {
                   </svg>
                 </button>
               ) : (
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className={`px-8 py-3 font-semibold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center gap-2 ${
-                    isSubmitting
-                      ? 'bg-gray-400 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700'
-                  } text-white`}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      Generating LMN...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Proceed to LMN Payment
-                    </>
-                  )}
-                </button>
+                <div className="text-sm text-gray-500">
+                  {/* Payment button is now on the attestation page itself */}
+                  Clicking on the Payment button will take you to the Stripe Checkout page.
+                </div>
               )}
             </div>
           </form>

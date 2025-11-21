@@ -31,6 +31,8 @@ interface UserInfo {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+const SAGA_LOGO_PATH = join(__dirname, '../assets/sagasaillogo.jpg');
+
 // Function to get HSA form path based on provider
 function getHSAFormPath(hsaProvider: string): string | null {
   const formMap: { [key: string]: string } = {
@@ -545,6 +547,256 @@ export async function generateLMNPDFBuffer(lmnData: string, userInfo: UserInfo):
              { width: pageWidth, align: 'center' }
            );
       }
+
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+interface ReceiptData {
+  customerName: string;
+  customerEmail?: string;
+  productName: string;
+  businessName: string;
+  businessAddress: string;
+  amount: number; // Service amount only (in dollars)
+  currency?: string;
+  paymentDate?: Date;
+  paymentIntentId?: string;
+  invoiceNumber?: string;
+  receiptNumber?: string;
+  paymentMethod?: string;
+}
+
+/**
+ * Generates a Stripe-like receipt PDF for service payments
+ * @param receiptData Receipt information
+ * @returns Base64 encoded PDF string
+ */
+export async function generateServiceReceiptPDF(receiptData: ReceiptData): Promise<string> {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({
+        size: 'LETTER',
+        margins: {
+          top: 72,
+          bottom: 72,
+          left: 72,
+          right: 72,
+        },
+      });
+
+      const buffers: Buffer[] = [];
+      doc.on('data', buffers.push.bind(buffers));
+      doc.on('end', () => {
+        const pdfBuffer = Buffer.concat(buffers);
+        resolve(pdfBuffer.toString('base64'));
+      });
+      doc.on('error', reject);
+
+      const {
+        customerName,
+        customerEmail,
+        productName,
+        businessName,
+        businessAddress,
+        amount,
+        currency = 'USD',
+        paymentDate = new Date(),
+        paymentIntentId,
+        invoiceNumber,
+        receiptNumber,
+        paymentMethod,
+      } = receiptData;
+
+      const formattedAmount = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency,
+      }).format(amount);
+
+      // Header - Receipt title + logo
+      const logoWidth = 50;
+      const logoX = 500;
+      const logoY = 40;
+      try {
+        doc.image(SAGA_LOGO_PATH, logoX, logoY, { width: logoWidth });
+      } catch (logoError) {
+        console.error('Failed to render Saga logo on receipt:', logoError);
+      }
+      
+      // Saga Health text directly under logo (centered)
+      const logoCenterX = logoX + (logoWidth / 2) - 40;
+      doc.fontSize(9)
+         .font('Helvetica')
+         .fillColor('#444444')
+         .text('Saga Health', logoCenterX, logoY + logoWidth + 5, { align: 'center', width: 80 });
+      
+      doc.fontSize(24)
+         .font('Helvetica-Bold')
+         .fillColor('#000000')
+         .text('Receipt', 72, 72, { align: 'left' });
+
+      const formattedDate = paymentDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+
+      // Invoice number and date paid under header
+      const infoStartY = 110;
+      doc.fontSize(12)
+         .font('Helvetica-Bold')
+         .fillColor('#333333')
+         .text('Invoice number:', 72, infoStartY, { continued: true })
+         .font('Helvetica')
+         .text(` ${invoiceNumber || paymentIntentId || 'N/A'}`);
+
+      doc.fontSize(12)
+         .font('Helvetica-Bold')
+         .fillColor('#333333')
+         .text('Date paid:', 72, infoStartY + 18, { continued: true })
+         .font('Helvetica')
+         .text(` ${formattedDate}`);
+
+      // Customer Information
+      doc.fontSize(12)
+         .font('Helvetica-Bold')
+         .fillColor('#000000')
+         .text('Bill To:', 72, 170, { align: 'left' });
+
+      const billToDetailStartY = 190;
+      doc.fontSize(11)
+         .font('Helvetica')
+         .fillColor('#333333')
+         .text(customerName, 72, billToDetailStartY, { align: 'left' });
+
+      let nextDetailY = billToDetailStartY + 18;
+      if (customerEmail) {
+        doc.fontSize(10)
+           .font('Helvetica')
+           .fillColor('#555555')
+           .text(customerEmail, 72, nextDetailY, { align: 'left' });
+        nextDetailY += 15;
+      }
+
+      const paidLineY = nextDetailY + (customerEmail ? 20 : 12);
+
+      doc.fontSize(13)
+         .font('Helvetica')
+         .fillColor('#222222')
+         .text(`${formattedAmount} paid on ${formattedDate}`, 72, paidLineY, { align: 'left' });
+
+      const billToDividerY = paidLineY + 30;
+
+      // Item Details
+      doc.fontSize(12)
+         .font('Helvetica')
+         .fillColor('#000000')
+         .text('Item', 72, billToDividerY + 10, { align: 'left' });
+
+      doc.fontSize(12)
+         .font('Helvetica')
+         .fillColor('#000000')
+         .text('Amount', 450, billToDividerY + 10, { align: 'right' });
+
+      // Divider line
+      const lineItemDividerY = billToDividerY + 30;
+      doc.moveTo(72, lineItemDividerY)
+         .lineTo(540, lineItemDividerY)
+         .strokeColor('#E5E5E5')
+         .lineWidth(1)
+         .stroke();
+
+      // Product name
+      doc.fontSize(11)
+         .font('Helvetica')
+         .fillColor('#333333')
+         .text(productName, 72, lineItemDividerY + 18, { width: 350, align: 'left' });
+
+      // Business info below product name
+      doc.fontSize(9)
+         .font('Helvetica')
+         .fillColor('#666666')
+         .text(`Provided by ${businessName}`, 72, lineItemDividerY + 40, { width: 350, align: 'left' });
+      
+      if (businessAddress) {
+        doc.fontSize(9)
+           .font('Helvetica')
+           .fillColor('#666666')
+           .text(businessAddress, 72, lineItemDividerY + 55, { width: 350, align: 'left' });
+      }
+
+      // Amount
+      doc.fontSize(11)
+         .font('Helvetica')
+         .fillColor('#333333')
+         .text(formattedAmount, 450, lineItemDividerY + 18, { align: 'right' });
+
+      // Divider line
+      const totalDividerY = lineItemDividerY + 90;
+      doc.moveTo(72, totalDividerY)
+         .lineTo(540, totalDividerY)
+         .strokeColor('#E5E5E5')
+         .lineWidth(1)
+         .stroke();
+
+      // Total
+      doc.fontSize(12)
+         .font('Helvetica')
+         .fillColor('#000000')
+         .text('Total', 72, totalDividerY + 20, { align: 'left' });
+      
+      doc.fontSize(12)
+         .font('Helvetica')
+         .fillColor('#000000')
+         .text(formattedAmount, 450, totalDividerY + 20, { align: 'right' });
+
+      // Payment History Table
+      const historyStartY = totalDividerY + 90;
+      const columnPositions = {
+        method: 72,
+        date: 220,
+        amount: 350,
+        receipt: 460,
+      };
+
+      doc.fontSize(12)
+         .font('Helvetica-Bold')
+         .fillColor('#000000')
+         .text('Payment History', 72, historyStartY, { align: 'left' });
+
+      const tableHeaderY = historyStartY + 25;
+      doc.fontSize(10)
+         .font('Helvetica')
+         .fillColor('#333333');
+      doc.text('Payment method', columnPositions.method, tableHeaderY);
+      doc.text('Date', columnPositions.date, tableHeaderY);
+      doc.text('Amount paid', columnPositions.amount, tableHeaderY, { align: 'left' });
+      doc.text('Receipt number', columnPositions.receipt, tableHeaderY, { align: 'left' });
+
+      doc.moveTo(72, tableHeaderY + 16)
+         .lineTo(540, tableHeaderY + 16)
+         .strokeColor('#E5E5E5')
+         .lineWidth(1)
+         .stroke();
+
+      const tableRowY = tableHeaderY + 34;
+      doc.font('Helvetica')
+         .fontSize(10)
+         .fillColor('#555555');
+      doc.text(paymentMethod || 'Card', columnPositions.method, tableRowY);
+      doc.text(formattedDate, columnPositions.date, tableRowY);
+      doc.text(formattedAmount, columnPositions.amount, tableRowY, { align: 'left' });
+      doc.text(receiptNumber || paymentIntentId || invoiceNumber || '—', columnPositions.receipt, tableRowY, { align: 'left' });
+
+      // Footer
+      const footerY = tableRowY + 60;
+      doc.fontSize(9)
+         .font('Helvetica')
+         .fillColor('#999999')
+         .text('Thank you for your business!', 72, footerY, { align: 'center', width: 468 });
 
       doc.end();
     } catch (error) {

@@ -141,7 +141,7 @@ export async function createSignatureRequest(params: SignatureRequestParams): Pr
       api_application_id: null
     };
 
-    console.log('Signature request payload:', JSON.stringify(signatureRequestData, null, 2));
+    // console.log('Signature request payload:', JSON.stringify(signatureRequestData, null, 2));
 
     const signatureResponse = await axios.post(
       `${SIGNWELL_API_URL}/documents`,

@@ -15,12 +15,28 @@ interface PaymentIntentResult {
   paymentIntentId: string;
 }
 
-interface ConfirmPaymentResult {
-  success: boolean;
-  status: string;
-  amount?: number;
+interface CreateCheckoutSessionParams {
+  amount: number;
   currency?: string;
-  error?: string;
+  metadata?: Record<string, any>;
+  stripeAcctId?: string | null;
+  paymentOption?: string; // 'lmn-only' | 'lmn-and-service' | 'service-only'
+  servicePrice?: number;
+  serviceName?: string | null;
+  duration?: string | null;
+  firstHealthCondition?: string | null;
+  businessName?: string | null;
+  businessAddress?: string | null;
+  customerFirstName?: string | null;
+  customerLastName?: string | null;
+  receiptEmail?: string | null;
+  successUrl: string;
+  cancelUrl: string;
+}
+
+interface CheckoutSessionResult {
+  sessionId: string;
+  url: string;
 }
 
 /**
@@ -57,7 +73,10 @@ export async function createPaymentIntent(params: CreatePaymentIntentParams): Pr
 
   // Add receipt email if provided
   if (receiptEmail) {
-    paymentIntentParams.receipt_email = receiptEmail;
+    paymentIntentParams.receipt_email = receiptEmail.trim(); // Trim whitespace
+    console.log('Setting receipt_email on payment intent:', receiptEmail.trim());
+  } else {
+    console.log('No receipt_email provided - receipts will not be sent');
   }
 
   // Handle different payment options
@@ -111,6 +130,22 @@ export async function createPaymentIntent(params: CreatePaymentIntentParams): Pr
   const paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
 
   console.log('Payment intent created successfully:', paymentIntent.id);
+  console.log('Payment intent receipt_email:', paymentIntent.receipt_email);
+  console.log('Payment intent status:', paymentIntent.status);
+  console.log('Has transfer_data:', !!paymentIntentParams.transfer_data);
+  
+  // Verify receipt_email was set correctly
+  if (receiptEmail && !paymentIntent.receipt_email) {
+    console.warn('⚠️ WARNING: receipt_email was provided but not set on payment intent!');
+    console.warn('Possible reasons:');
+    console.warn('  1. Stripe account email settings may be disabled');
+    console.warn('  2. Email format may be invalid');
+    console.warn('  3. Destination charges may have different receipt behavior');
+  } else if (paymentIntent.receipt_email) {
+    console.log('✅ receipt_email successfully set on payment intent');
+    console.log('📧 Note: In test mode, receipts are only sent to verified test emails');
+    console.log('📧 Note: With destination charges, receipts may be sent from connected account');
+  }
 
   return {
     clientSecret: paymentIntent.client_secret!,
@@ -119,69 +154,317 @@ export async function createPaymentIntent(params: CreatePaymentIntentParams): Pr
 }
 
 /**
- * Updates payment intent with receipt email (Stripe will send receipt automatically)
- * Note: In test mode, Stripe does not automatically send receipt emails.
- * Receipts are only sent automatically in live mode when receipt_email is set.
- * @param paymentIntentId The payment intent ID
- * @param receiptEmail The email address to send receipt to
- * @returns Success status
+ * Creates a Stripe Checkout Session with optional destination charge
+ * @param params Checkout session parameters
+ * @returns Checkout session result with session ID and URL
  */
-export async function updateReceiptEmail(paymentIntentId: string, receiptEmail: string): Promise<boolean> {
-  try {
-    if (!receiptEmail) {
-      console.log('No receipt email provided for payment intent:', paymentIntentId);
-      return false;
-    }
-
-    // Update the payment intent with receipt_email
-    // Stripe will automatically send the receipt when payment succeeds (in live mode)
-    await stripe.paymentIntents.update(paymentIntentId, {
-      receipt_email: receiptEmail,
-    });
-    
-    console.log(`Receipt email set to: ${receiptEmail} for payment intent: ${paymentIntentId}`);
-    console.log('Note: Receipts are only sent automatically in live mode, not in test mode.');
-    return true;
-  } catch (error: any) {
-    console.error('Failed to update receipt email:', error.message);
-    return false;
-  }
-}
-
-/**
- * Confirms/retrieves a payment intent status
- * @param paymentIntentId The payment intent ID to check
- * @returns Payment confirmation result
- */
-export async function confirmPayment(paymentIntentId: string): Promise<ConfirmPaymentResult> {
-  if (!paymentIntentId) {
-    throw new Error('Payment intent ID required');
-  }
-
-  const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+export async function createCheckoutSession(params: CreateCheckoutSessionParams): Promise<CheckoutSessionResult> {
+  const { 
+    amount, 
+    currency = 'usd', 
+    metadata = {}, 
+    stripeAcctId, 
+    paymentOption, 
+    servicePrice, 
+    serviceName,
+    duration,
+    firstHealthCondition,
+    businessName,
+    businessAddress,
+    customerFirstName,
+    customerLastName,
+    receiptEmail,
+    successUrl,
+    cancelUrl
+  } = params;
   
-  if (paymentIntent.status === 'succeeded') {
-    // Log receipt email status
-    if (paymentIntent.receipt_email) {
-      console.log(`Payment succeeded. Receipt email is set to: ${paymentIntent.receipt_email}`);
-      console.log('Note: Stripe automatically sends receipts in live mode when receipt_email is set.');
-      console.log('In test mode, receipts are not sent automatically. Check Stripe Dashboard to verify.');
-    } else {
-      console.log('Payment succeeded but no receipt_email is set on the payment intent.');
+  console.log('Creating checkout session for amount:', amount);
+  console.log('Payment option:', paymentOption);
+  console.log('Service price:', servicePrice);
+  console.log('Service name received:', serviceName);
+  console.log('Stripe account ID:', stripeAcctId);
+  console.log('Receipt email:', receiptEmail);
+  
+  if (!amount || amount <= 0) {
+    throw new Error('Invalid amount');
+  }
+
+  const amountInCents = Math.round(amount * 100);
+  const LMN_FEE = 20; // $20 LMN fee
+  const takeRate = 0.08; // 8% take rate
+
+  // Build line items for checkout
+  const lineItems: any[] = [];
+  
+  // Add line items based on payment option
+  if (paymentOption === 'lmn-only') {
+    lineItems.push({
+      price_data: {
+        currency: currency,
+        product_data: {
+          name: 'Letter of Medical Necessity (LMN)',
+          description: 'LMN processing and generation fee',
+        },
+        unit_amount: 2000, // $20.00 in cents
+      },
+      quantity: 1,
+    });
+  } else if (paymentOption === 'lmn-and-service' && servicePrice) {
+    // For LMN + Service, we'll create separate line items
+    // The transfer will only apply to the service portion
+    console.log('Service name:', serviceName);
+    lineItems.push({
+      price_data: {
+        currency: currency,
+        product_data: {
+          name: 'Letter of Medical Necessity (LMN)',
+          description: 'LMN processing and generation fee',
+        },
+        unit_amount: 2000, // $20.00 in cents
+      },
+      quantity: 1,
+    });
+    // Format product name: "[duration] [service name] for [health condition]"
+    let productName = 'Appointment Payment';
+    if (duration && serviceName && firstHealthCondition) {
+      productName = `${duration} ${serviceName} for ${firstHealthCondition}`;
+    } else if (duration && serviceName) {
+      productName = `${duration} ${serviceName}`;
+    } else if (serviceName) {
+      productName = serviceName;
     }
     
-    return {
-      success: true,
-      status: paymentIntent.status,
-      amount: paymentIntent.amount / 100, // Convert back from cents
-      currency: paymentIntent.currency,
-    };
+    // Format description: "Provided by [business name], [address]"
+    let productDescription = '';
+    if (businessName && businessAddress) {
+      productDescription = `Provided by ${businessName}, ${businessAddress}`;
+    } else if (businessName) {
+      productDescription = `Provided by ${businessName}`;
+    }
+    
+    lineItems.push({
+      price_data: {
+        currency: currency,
+        product_data: {
+          name: productName,
+        },
+        unit_amount: Math.round(servicePrice * 100),
+      },
+      quantity: 1,
+    });
+  } else if (paymentOption === 'service-only') {
+    // Service only
+    // Format product name: "[duration] [service name] for [health condition]"
+    let productName = 'Appointment Payment';
+    if (duration && serviceName && firstHealthCondition) {
+      productName = `${duration} ${serviceName} for ${firstHealthCondition}`;
+    } else if (duration && serviceName) {
+      productName = `${duration} ${serviceName}`;
+    } else if (serviceName) {
+      productName = serviceName;
+    }
+    
+    // Format description: "Provided by [business name], [address]"
+    let productDescription = '';
+    if (businessName && businessAddress) {
+      productDescription = `Provided by ${businessName}, ${businessAddress}`;
+    } else if (businessName) {
+      productDescription = `Provided by ${businessName}`;
+    }
+    
+    lineItems.push({
+      price_data: {
+        currency: currency,
+        product_data: {
+          name: productName,
+        },
+        unit_amount: amountInCents,
+      },
+      quantity: 1,
+    });
   } else {
-    return {
-      success: false,
-      status: paymentIntent.status,
-      error: 'Payment not completed',
+    // Fallback
+    lineItems.push({
+      price_data: {
+        currency: currency,
+        product_data: {
+          name: 'Payment',
+        },
+        unit_amount: amountInCents,
+      },
+      quantity: 1,
+    });
+  }
+
+  // Create or retrieve customer with first and last name
+  let customerId: string | undefined;
+  if (customerFirstName && customerLastName) {
+    try {
+      const customerName = `${customerFirstName} ${customerLastName}`.trim();
+      console.log('Creating/retrieving customer with name:', customerName);
+      
+      // Search for existing customer by email (if available)
+      let existingCustomerId: string | null = null;
+      if (receiptEmail) {
+        const trimmedEmail = receiptEmail.trim();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (emailRegex.test(trimmedEmail)) {
+          const customers = await stripe.customers.list({
+            email: trimmedEmail,
+            limit: 1,
+          });
+          if (customers.data.length > 0) {
+            const existingCustomer = customers.data[0];
+            existingCustomerId = existingCustomer.id;
+            // Update customer name if it's different
+            if (existingCustomer.name !== customerName) {
+              await stripe.customers.update(existingCustomer.id, {
+                name: customerName,
+              });
+            }
+          }
+        }
+      }
+      
+      if (existingCustomerId) {
+        customerId = existingCustomerId;
+        console.log('Using existing customer:', customerId);
+      } else {
+        // Create new customer
+        const customer = await stripe.customers.create({
+          name: customerName,
+          email: receiptEmail?.trim() || undefined,
+        });
+        customerId = customer.id;
+        console.log('Created new customer:', customerId);
+      }
+    } catch (error: any) {
+      console.error('Error creating/retrieving customer:', error);
+      // Continue without customer ID if creation fails
+    }
+  }
+
+  // Build checkout session parameters
+  const sessionParams: any = {
+    payment_method_types: ['card'],
+    line_items: lineItems,
+    mode: 'payment',
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    metadata: metadata,
+  };
+
+  // Add customer ID if available
+  if (customerId) {
+    sessionParams.customer = customerId;
+    console.log('Setting customer ID on checkout session:', customerId);
+  }
+
+  // Add receipt email if provided (and customer not already set)
+  if (receiptEmail && !customerId) {
+    const trimmedEmail = receiptEmail.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (emailRegex.test(trimmedEmail)) {
+      sessionParams.customer_email = trimmedEmail;
+      sessionParams.invoice_creation = {
+        enabled: true,
+      };
+      console.log('Setting customer_email on checkout session:', trimmedEmail);
+    } else {
+      console.warn('⚠️ Invalid email format provided:', trimmedEmail);
+    }
+  } else if (receiptEmail && customerId) {
+    // If we have a customer ID, enable invoice creation
+    sessionParams.invoice_creation = {
+      enabled: true,
     };
   }
+
+  // Handle different payment options for destination charges
+  // Note: Add paymentOption and other details to metadata for retrieval later
+  const enhancedMetadata = {
+    ...metadata,
+    paymentOption: paymentOption || 'lmn-only',
+    serviceName: serviceName || '',
+    duration: duration || '',
+    firstHealthCondition: firstHealthCondition || '',
+    businessName: businessName || '',
+    businessAddress: businessAddress || '',
+    servicePrice: servicePrice?.toString() || '',
+  };
+
+  if (paymentOption === 'lmn-only') {
+    // LMN only: All money goes to platform, no destination charge
+    sessionParams.metadata = enhancedMetadata;
+    console.log('LMN only payment: All funds go to platform, no destination charge');
+  } else if (paymentOption === 'lmn-and-service' && stripeAcctId && servicePrice) {
+    // LMN + Service: $20 stays with platform, service amount goes to merchant with 8% take rate
+    const serviceAmountInCents = Math.round(servicePrice * 100);
+    const platformFeeAmount = Math.round(serviceAmountInCents * takeRate);
+    const merchantReceivesAmount = serviceAmountInCents - platformFeeAmount;
+    
+    // Use payment_intent_data to set up destination charge
+    // Only transfer the service portion (not the LMN fee)
+    sessionParams.payment_intent_data = {
+      transfer_data: {
+        destination: stripeAcctId,
+        amount: merchantReceivesAmount, // Transfer the service amount minus 8% fee
+      },
+      metadata: enhancedMetadata,
+    };
+    sessionParams.metadata = enhancedMetadata;
+    
+    console.log(`LMN + Service payment:`);
+    console.log(`  Total amount: $${amount.toFixed(2)}`);
+    console.log(`  LMN fee (platform): $${LMN_FEE.toFixed(2)}`);
+    console.log(`  Service amount: $${servicePrice.toFixed(2)}`);
+    console.log(`  Platform take (8% of service): $${(platformFeeAmount / 100).toFixed(2)}`);
+    console.log(`  Merchant receives: $${(merchantReceivesAmount / 100).toFixed(2)}`);
+    console.log(`  Platform total: $${((amountInCents - merchantReceivesAmount) / 100).toFixed(2)}`);
+  } else if (paymentOption === 'service-only' && stripeAcctId) {
+    // Service only: Full amount goes to merchant with 8% take rate
+    const applicationFeeAmount = Math.round(amountInCents * takeRate);
+    
+    sessionParams.payment_intent_data = {
+      transfer_data: {
+        destination: stripeAcctId,
+      },
+      application_fee_amount: applicationFeeAmount,
+      metadata: enhancedMetadata,
+    };
+    sessionParams.metadata = enhancedMetadata;
+    
+    console.log(`Service only payment: ${stripeAcctId} with ${takeRate * 100}% take rate (${applicationFeeAmount} cents)`);
+  } else if (stripeAcctId) {
+    // Fallback: If stripeAcctId is provided but no specific payment option, use default behavior
+    const applicationFeeAmount = Math.round(amountInCents * takeRate);
+    sessionParams.payment_intent_data = {
+      transfer_data: {
+        destination: stripeAcctId,
+      },
+      application_fee_amount: applicationFeeAmount,
+      metadata: enhancedMetadata,
+    };
+    sessionParams.metadata = enhancedMetadata;
+    console.log(`Using destination charge: ${stripeAcctId} with ${takeRate * 100}% take rate (${applicationFeeAmount} cents)`);
+  } else {
+    sessionParams.metadata = enhancedMetadata;
+    console.log('No stripeAcctId provided, creating standard checkout session');
+  }
+
+  // Create checkout session
+  const session = await stripe.checkout.sessions.create(sessionParams);
+
+  console.log('Checkout session created successfully:', session.id);
+  console.log('Checkout session URL:', session.url);
+  if (session.customer_email) {
+    console.log('Customer email set:', session.customer_email);
+  }
+
+  return {
+    sessionId: session.id,
+    url: session.url!,
+  };
 }
+
 

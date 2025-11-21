@@ -101,16 +101,27 @@ export default function EmbeddedBooking() {
         setBookingOptions([]);
       } else {
         // Transform services data to match expected format
-        const options = servicesData.map((service, index) => ({
-          id: index + 1, // Use index as ID for URL params
-          serviceId: service.id, // Store actual service ID
-          name: service.service_type || 'Service',
-          serviceType: service.service_type, // Store service type for LMN form
-          duration: formatDuration(service.duration_in_mins || 60),
-          url: service.booking_link || '',
-          icon: getServiceIcon(service.service_type),
-          price: service.service_pricing || null,
-        }));
+        const options = servicesData.map((service, index) => {
+          // Use service_name if available, otherwise fall back to service_type
+          // service_name should contain the actual service name like "Massage Therapy"
+          // service_type might be a generic category like "Wellness service"
+          const serviceName = service.service_name || service.service_type || 'Service';
+          console.log('Service data:', { 
+            service_name: service.service_name, 
+            service_type: service.service_type,
+            using: serviceName 
+          });
+          return {
+            id: index + 1, // Use index as ID for URL params
+            serviceId: service.id, // Store actual service ID
+            name: serviceName,
+            serviceType: serviceName, // Use the actual service name for LMN form
+            duration: formatDuration(service.duration_in_mins || 60),
+            url: service.booking_link || '',
+            icon: getServiceIcon(service.service_type),
+            price: service.service_pricing || null,
+          };
+        });
         
         setBookingOptions(options);
         
@@ -131,10 +142,13 @@ export default function EmbeddedBooking() {
   const onBookingComplete = () => {
     console.log('Booking completed!');
     
-    // Navigate to LMN form with service type and price
-    const serviceType = bookingOption?.serviceType || 'Wellness service';
+    // Navigate to LMN form with service type, price, and duration
+    const serviceType = bookingOption?.serviceType || bookingOption?.name || 'Wellness service';
     const servicePrice = bookingOption?.price || 80;
-    navigate(`/book/${businessName}/lmn-form?service=${encodeURIComponent(serviceType)}&price=${servicePrice}`, {
+    const duration = bookingOption?.duration || '60 min';
+    console.log('EmbeddedBooking - Navigating with serviceType:', serviceType);
+    console.log('EmbeddedBooking - bookingOption:', bookingOption);
+    navigate(`/book/${businessName}/lmn-form?service=${encodeURIComponent(serviceType)}&price=${servicePrice}&duration=${encodeURIComponent(duration)}`, {
       state: { stripeAcctId: stripeAcctId }
     });
     
@@ -142,6 +156,13 @@ export default function EmbeddedBooking() {
   };
 
   // Listen for messages from the iframe (Google Calendar)
+  // Check if user canceled checkout
+  useEffect(() => {
+    if (searchParams.get('canceled') === 'true') {
+      alert('Payment was canceled. You can try again when ready.');
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     const handleMessage = (event) => {
       // Security: Only accept messages from Google Calendar domain
@@ -317,21 +338,61 @@ export default function EmbeddedBooking() {
                   directly to payment and use your HSA/FSA funds for reimbursement.
                 </p>
                 <button
-                  onClick={() => navigate('/payment', { 
-                    state: { 
-                      servicePrice: bookingOption.price || 80,
-                      serviceName: bookingOption.name,
-                      businessName: service.name,
-                      serviceOnly: true,
-                      stripeAcctId: stripeAcctId
-                    } 
-                  })}
+                  onClick={async () => {
+                    try {
+                      const servicePrice = bookingOption.price || 80;
+                      const baseUrl = window.location.origin;
+                      const successUrl = `${baseUrl}/payment-success?session_id={CHECKOUT_SESSION_ID}`;
+                      const cancelUrl = `${baseUrl}${window.location.pathname}?canceled=true`;
+
+                      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/create-checkout-session`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          amount: servicePrice,
+                          stripeAcctId: stripeAcctId,
+                          paymentOption: 'service-only',
+                          servicePrice: servicePrice,
+                          serviceName: bookingOption.name,
+                          duration: bookingOption.duration || '60 min',
+                          firstHealthCondition: null, // Service-only payments don't have health conditions
+                          businessName: service.name,
+                          businessAddress: service.address || '',
+                          receiptEmail: null,
+                          successUrl: successUrl,
+                          cancelUrl: cancelUrl,
+                          metadata: {
+                            source: 'saga-health-service-only',
+                            serviceName: bookingOption.name,
+                            businessName: service.name,
+                          }
+                        }),
+                      });
+
+                      if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`Failed to create checkout session: ${errorText}`);
+                      }
+
+                      const data = await response.json();
+                      if (data.url) {
+                        window.location.href = data.url;
+                      } else {
+                        throw new Error('No checkout URL received');
+                      }
+                    } catch (error) {
+                      console.error('Error creating checkout session:', error);
+                      alert(`Payment failed: ${error.message}`);
+                    }
+                  }}
                   className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                   </svg>
-                  Pay for my appointment
+                  Pay for my appointment (${(bookingOption?.price || 80).toFixed(2)})
                 </button>
               </div>
             </div>
