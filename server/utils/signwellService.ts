@@ -3,6 +3,7 @@ import { Resend } from 'resend';
 import * as dotenv from 'dotenv';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import stripe from '../stripe.js';
 
 // Get current file directory and load environment variables
 const __filename = fileURLToPath(import.meta.url);
@@ -243,10 +244,38 @@ export async function handleSignwellWebhook(payload: WebhookPayload): Promise<Ha
     const docId = payload?.data?.object?.id;
     console.log('SignWell document completed:', docId);
 
-    // Try to infer the recipient email and name from the SignWell payload (falls back to admin email)
-    const recipientEmail =
-      payload?.data?.object?.recipients?.[0]?.email || 'irenagao2013@gmail.com';
+    // Get recipient name from SignWell payload
     const recipientName = payload?.data?.object?.recipients?.[0]?.name || 'there';
+    
+    // Look up customer email from Stripe payment intent metadata
+    // The signwellDocumentGroupId is stored in payment intent metadata when the document is created
+    let recipientEmail = 'growth@mysagahealth.com'; // Fallback email
+    
+    if (docId) {
+      try {
+        // Search for payment intents with matching signwellDocumentGroupId in metadata
+        // Use Stripe search API for more efficient lookup
+        const searchResults = await stripe.paymentIntents.search({
+          query: `metadata['signwellDocumentGroupId']:'${docId}'`,
+          limit: 1,
+        });
+        
+        if (searchResults.data.length > 0) {
+          const matchingPaymentIntent = searchResults.data[0];
+          if (matchingPaymentIntent.metadata?.customerEmail) {
+            recipientEmail = matchingPaymentIntent.metadata.customerEmail;
+            console.log(`Found customer email from Stripe payment intent: ${recipientEmail}`);
+          } else {
+            console.warn(`Payment intent found but no customerEmail in metadata for document ${docId}`);
+          }
+        } else {
+          console.warn(`No payment intent found with signwellDocumentGroupId ${docId}, using fallback email`);
+        }
+      } catch (stripeError) {
+        console.error('Error looking up customer email from Stripe:', stripeError);
+        // Continue with fallback email
+      }
+    }
 
     // Attempt to fetch the signed PDF from SignWell
     let attachments: { filename: string; content: string; contentType: string }[] = [];

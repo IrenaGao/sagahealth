@@ -587,13 +587,15 @@ app.post('/api/generate-lmn', async (req, res) => {
     console.log('SignWell signature request created:', signwellResult);
 
     // Update Stripe payment intent metadata to mark LMN as generated (idempotency)
+    // Also store customer email so we can email them after SignWell signing is complete
     if (paymentIntentId) {
       try {
         await stripe.paymentIntents.update(paymentIntentId, {
           metadata: {
             lmnGenerated: 'true',
             lmnGeneratedAt: new Date().toISOString(),
-            signwellDocumentGroupId: signwellResult.documentGroupId || ''
+            signwellDocumentGroupId: signwellResult.documentGroupId || '',
+            customerEmail: email || '' // Store customer email for webhook handler
           }
         });
         console.log(`Updated payment intent ${paymentIntentId} metadata to mark LMN as generated`);
