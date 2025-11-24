@@ -19,6 +19,7 @@ export default function LMNForm() {
   const location = useLocation();
   const businessName = formatBusinessName(urlBusinessName);
   const stripeAcctId = location.state?.stripeAcctId || null;
+  const initialBookingSystemState = location.state?.bookingSystemEnabled;
   
   // Get service name, price, and duration from URL, with fallback to localStorage if coming back from cancel
   const urlServiceType = searchParams.get('service');
@@ -64,20 +65,28 @@ export default function LMNForm() {
   const [submitError, setSubmitError] = useState(null);
   const [paymentOption, setPaymentOption] = useState('lmn-only'); // 'lmn-only' | 'lmn-and-service'
   const [providerAddress, setProviderAddress] = useState('');
+  const [bookingSystemEnabled, setBookingSystemEnabled] = useState(
+    initialBookingSystemState !== undefined ? initialBookingSystemState : true
+  );
 
-  // Fetch provider address
+  // Fetch provider address and booking system flag
   useEffect(() => {
     const fetchProviderAddress = async () => {
       try {
         const searchPattern = urlBusinessName.replace(/_/g, ' ');
         const { data, error } = await supabase
           .from('providers')
-          .select('address')
+          .select('address, booking_system')
           .ilike('business_name', searchPattern)
           .single();
         
-        if (!error && data?.address) {
-          setProviderAddress(data.address);
+        if (!error && data) {
+          if (data.address) {
+            setProviderAddress(data.address);
+          }
+          if (typeof data.booking_system !== 'undefined') {
+            setBookingSystemEnabled(data.booking_system !== false);
+          }
         }
       } catch (err) {
         console.error('Error fetching provider address:', err);
@@ -86,6 +95,19 @@ export default function LMNForm() {
     
     fetchProviderAddress();
   }, [urlBusinessName]);
+
+  // Force LMN-only payment when provider does not have a booking system
+  useEffect(() => {
+    if (bookingSystemEnabled === false && paymentOption !== 'lmn-only') {
+      setPaymentOption('lmn-only');
+    }
+  }, [bookingSystemEnabled, paymentOption]);
+
+  const checkoutAmount = bookingSystemEnabled === false
+    ? 20
+    : paymentOption === 'lmn-and-service'
+      ? (20 + servicePrice)
+      : 20;
 
   // Check if user canceled checkout and restore form data
   useEffect(() => {
@@ -622,44 +644,46 @@ export default function LMNForm() {
                 </div>
 
                 {/* Payment Options */}
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Payment Options</h2>
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-3">
-                      <input
-                        type="radio"
-                        id="lmn-and-service"
-                        name="paymentOption"
-                        value="lmn-and-service"
-                        checked={paymentOption === 'lmn-and-service'}
-                        onChange={(e) => setPaymentOption(e.target.value)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                      />
-                      <label htmlFor="lmn-and-service" className="text-sm font-medium text-gray-900">
-                        Pay for LMN + Appt. together ($20.00 LMN + ${servicePrice.toFixed(2)} Appt. = ${(20 + servicePrice).toFixed(2)} Total)
-                      </label>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <input
-                        type="radio"
-                        id="lmn-only"
-                        name="paymentOption"
-                        value="lmn-only"
-                        checked={paymentOption === 'lmn-only'}
-                        onChange={(e) => setPaymentOption(e.target.value)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                      />
-                      <label htmlFor="lmn-only" className="text-sm font-medium text-gray-900">
-                        Pay for LMN only - I'll book the appt. later but want to get my LMN now ($20.00)
-                      </label>
+                {bookingSystemEnabled !== false && (
+                  <div className="bg-gray-50 p-6 rounded-lg">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Payment Options</h2>
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="radio"
+                          id="lmn-and-service"
+                          name="paymentOption"
+                          value="lmn-and-service"
+                          checked={paymentOption === 'lmn-and-service'}
+                          onChange={(e) => setPaymentOption(e.target.value)}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                        />
+                        <label htmlFor="lmn-and-service" className="text-sm font-medium text-gray-900">
+                          Pay for LMN + Appt. together ($20.00 LMN + ${servicePrice.toFixed(2)} Appt. = ${(20 + servicePrice).toFixed(2)} Total)
+                        </label>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="radio"
+                          id="lmn-only"
+                          name="paymentOption"
+                          value="lmn-only"
+                          checked={paymentOption === 'lmn-only'}
+                          onChange={(e) => setPaymentOption(e.target.value)}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                        />
+                        <label htmlFor="lmn-only" className="text-sm font-medium text-gray-900">
+                          Pay for LMN only - I'll book the appt. later but want to get my LMN now ($20.00)
+                        </label>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Payment Button */}
                 <div className="pt-4">
                   <StripeCheckoutButton
-                    amount={paymentOption === 'lmn-and-service' ? (20 + servicePrice) : 20}
+                    amount={checkoutAmount}
                     onError={handlePaymentError}
                     stripeAcctId={stripeAcctId}
                     paymentOption={paymentOption}

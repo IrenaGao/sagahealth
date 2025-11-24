@@ -57,6 +57,7 @@ export default function ServiceDetails() {
           address: data.address || '',
           image: data.image || 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=1200&h=600&fit=crop',
           stripeAcctId: data.stripe_acct_id || null,
+          bookingSystemEnabled: data.booking_system !== false,
         };
         setService(mappedData);
         setError(null);
@@ -192,18 +193,33 @@ export default function ServiceDetails() {
             <div className="mb-6 pb-6 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900 mb-2">About</h2>
               <p className="text-gray-600 leading-relaxed">{service.description}</p>
+              <p className="mt-4 text-gray-700 font-medium">
+                Save ~30% on your appointment by unlocking pre-tax HSA/FSA funds. Just take a quick health survey,
+                pay a $20 fee, and get your Letter of Medical Necessity (LMN) in hours.
+              </p>
             </div>
           )}
 
           {/* Booking Button */}
           <div className="flex justify-center pt-2">
             <button
-              onClick={() => navigate(`/book/${businessName}`, { 
-                state: { stripeAcctId: service.stripeAcctId } 
-              })}
+              onClick={() => {
+                if (service.bookingSystemEnabled === false) {
+                  navigate(`/book/${businessName}/lmn-form`, {
+                    state: {
+                      stripeAcctId: service.stripeAcctId,
+                      bookingSystemEnabled: false,
+                    },
+                  });
+                } else {
+                  navigate(`/book/${businessName}`, {
+                    state: { stripeAcctId: service.stripeAcctId },
+                  });
+                }
+              }}
               className="w-full sm:w-auto px-8 py-4 bg-emerald-500 text-white text-lg font-semibold rounded-xl shadow-lg hover:bg-emerald-600 transition-all hover:shadow-xl"
             >
-              Book Now
+              {service.bookingSystemEnabled === false ? 'Get your LMN now' : 'Book Now'}
             </button>
           </div>
         </div>

@@ -70,6 +70,20 @@ export default function BookingPage() {
         categories = [providerData.business_type];
       }
 
+      const bookingSystemEnabled = providerData.booking_system !== false;
+
+      // If provider does not have a booking system, send user straight to LMN form
+      if (!bookingSystemEnabled) {
+        navigate(`/book/${businessName}/lmn-form`, {
+          replace: true,
+          state: {
+            stripeAcctId: providerData.stripe_acct_id || null,
+            bookingSystemEnabled: false,
+          },
+        });
+        return;
+      }
+
       setService({
         id: providerData.id,
         name: providerData.business_name || 'Wellness Service',
