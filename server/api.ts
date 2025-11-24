@@ -10,7 +10,6 @@ import stripe from './stripe.js';
 import * as dotenv from 'dotenv';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { writeFileSync } from 'fs';
 
 // Get current file directory
 const __filename = fileURLToPath(import.meta.url);
@@ -200,7 +199,7 @@ app.get('/api/checkout-session', async (req, res) => {
       if (paymentMethodValue && typeof paymentMethodValue === 'object' && 'card' in paymentMethodValue) {
         const card = paymentMethodValue.card as Stripe.PaymentMethod.Card | null | undefined;
         paymentMethodDescription = formatCardDescription(card?.brand, card?.last4);
-      }
+    }
 
       if (!paymentMethodDescription) {
         const paymentMethodId = typeof paymentMethodValue === 'string'
@@ -408,10 +407,13 @@ app.get('/api/checkout-session', async (req, res) => {
 app.post('/api/generate-lmn', async (req, res) => {
   try {
     console.log("generating lmn in api.ts")
+    console.log("Request body keys:", Object.keys(req.body || {}));
+    console.log("Request body:", JSON.stringify(req.body, null, 2));
+    
     const {
       firstName,
       lastName,
-      email,
+      email: emailFromBody,
       age,
       sex,
       hsaProvider,
@@ -426,33 +428,80 @@ app.post('/api/generate-lmn', async (req, res) => {
       paymentProcessed,
       paymentIntentId
     } = req.body;
+    
+    // Get email from Stripe checkout session if not provided in body
+    let email = emailFromBody;
+    if (!email && paymentIntentId) {
+      try {
+        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
+          expand: ['customer']
+        });
+        
+        // Try to get email from customer details
+        if (paymentIntent.customer) {
+          const customer = typeof paymentIntent.customer === 'object' 
+            ? paymentIntent.customer as Stripe.Customer 
+            : await stripe.customers.retrieve(paymentIntent.customer as string);
+          if (customer && typeof customer === 'object' && 'email' in customer) {
+            email = customer.email || null;
+            console.log('Retrieved email from Stripe customer:', email);
+          }
+        }
+        
+        // If still no email, try to get from receipt_email
+        if (!email && paymentIntent.receipt_email) {
+          email = paymentIntent.receipt_email;
+          console.log('Retrieved email from payment intent receipt_email:', email);
+        }
+      } catch (stripeError) {
+        console.error('Error retrieving email from Stripe:', stripeError);
+      }
+    }
 
-    // Check if LMN has already been generated for this payment (idempotency)
+    // Check if LMN has already been generated for this payment (idempotency using Stripe metadata)
     if (paymentIntentId) {
       try {
-        const fs = await import('fs/promises');
-        const generatedLmnsDir = join(__dirname, '../generated_lmns');
-        const existingLmns = await fs.readdir(generatedLmnsDir).catch(() => []);
-        const hasExistingLmn = existingLmns.some((file: string) => file.includes(paymentIntentId));
+        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+        const lmnGenerated = paymentIntent.metadata?.lmnGenerated === 'true';
         
-        if (hasExistingLmn) {
+        if (lmnGenerated) {
           console.log(`LMN already generated for payment ${paymentIntentId}, skipping duplicate generation`);
           return res.status(200).json({ 
             message: 'LMN already generated for this payment',
             paymentIntentId 
           });
         }
-      } catch (fsError) {
-        console.error('Error checking for existing LMN:', fsError);
+      } catch (stripeError) {
+        console.error('Error checking Stripe metadata for existing LMN:', stripeError);
         // Continue with generation if check fails
       }
     }
 
-    // Validate required fields
-    if (!firstName || !lastName || !email || !age || !hsaProvider || !state) {
+    // Validate required fields with detailed logging
+    const missingFields: string[] = [];
+    if (!firstName) missingFields.push('firstName');
+    if (!lastName) missingFields.push('lastName');
+    if (!email) missingFields.push('email');
+    if (!age) missingFields.push('age');
+    if (!hsaProvider) missingFields.push('hsaProvider');
+    if (!state) missingFields.push('state');
+    
+    if (missingFields.length > 0) {
+      console.error('Missing required fields for LMN generation:', missingFields);
+      console.error('Received data:', {
+        firstName: firstName || 'MISSING',
+        lastName: lastName || 'MISSING',
+        email: email || 'MISSING',
+        age: age || 'MISSING',
+        hsaProvider: hsaProvider || 'MISSING',
+        state: state || 'MISSING',
+        paymentIntentId: paymentIntentId || 'MISSING',
+        hasFormData: !!req.body,
+        bodyKeys: Object.keys(req.body || {})
+      });
       return res.status(400).json({ 
         error: 'Missing required fields',
-        details: 'firstName, lastName, email, age, hsaProvider, and state are required'
+        details: `Missing fields: ${missingFields.join(', ')}. Required: firstName, lastName, email, age, hsaProvider, and state`
       });
     }
 
@@ -521,31 +570,38 @@ app.post('/api/generate-lmn', async (req, res) => {
       desiredProduct: desiredProduct || 'Wellness service/product',
       businessName: businessName || ''
     });
-    // console.log('PDF generated successfully', pdfBase64);
-    
-    // Save PDF to file (include paymentIntentId in filename for idempotency)
-    const pdfFileName = paymentIntentId 
-      ? `LMN_hi_${firstName}_${lastName}_${new Date().toISOString().split('T')[0]}_${paymentIntentId}.pdf`
-      : `LMN_hi_${firstName}_${lastName}_${new Date().toISOString().split('T')[0]}.pdf`;
-    const pdfFilePath = join(__dirname, '../generated_lmns', pdfFileName);
-    const pdfBuffer = Buffer.from(pdfBase64, 'base64');
-    writeFileSync(pdfFilePath, pdfBuffer);
-    console.log(`PDF saved to: ${pdfFilePath}`);
-    // return;
+    console.log('PDF generated successfully (in memory only, not saved to disk)');
 
     // Send to SignWell for signature
     console.log('Sending to SignWell for e-signature...');
     const signwellResult = await createSignatureRequest({
       pdfBase64,
       fileName: `LMN_${firstName}_${lastName}_${new Date().toISOString().split('T')[0]}.pdf`,
-      // Send the LMN to the email the user provided in the form
-      recipientEmail: email,
+      // Always send the LMN signature request to support email
+      recipientEmail: 'support@mysagahealth.com',
       recipientName: `${firstName} ${lastName}`,
       subject: 'Please sign your Letter of Medical Necessity',
       message: `Hi ${firstName}, please review and sign your Letter of Medical Necessity for ${hsaProvider}. This document is required for HSA/FSA reimbursement.`
     });
 
     console.log('SignWell signature request created:', signwellResult);
+
+    // Update Stripe payment intent metadata to mark LMN as generated (idempotency)
+    if (paymentIntentId) {
+      try {
+        await stripe.paymentIntents.update(paymentIntentId, {
+          metadata: {
+            lmnGenerated: 'true',
+            lmnGeneratedAt: new Date().toISOString(),
+            signwellDocumentGroupId: signwellResult.documentGroupId || ''
+          }
+        });
+        console.log(`Updated payment intent ${paymentIntentId} metadata to mark LMN as generated`);
+      } catch (metadataError) {
+        console.error('Failed to update payment intent metadata:', metadataError);
+        // Don't fail the request if metadata update fails
+      }
+    }
 
     // Return success response
     res.json({

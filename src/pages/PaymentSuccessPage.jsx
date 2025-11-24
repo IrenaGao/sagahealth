@@ -9,7 +9,7 @@ export default function PaymentSuccessPage() {
   const [sessionData, setSessionData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const lmnGenerationTriggeredRef = useRef(false);
-  const checkoutSessionFetchedRef = useRef<string | null>(null); // Store the sessionId that was fetched
+  const checkoutSessionFetchedRef = useRef(null); // Store the sessionId that was fetched
 
   // Get session_id from URL if coming from Checkout
   const sessionId = searchParams.get('session_id');
@@ -58,6 +58,8 @@ export default function PaymentSuccessPage() {
               },
               body: JSON.stringify({
                 ...data.formData,
+                // Include email from checkout session if available (since email was removed from form)
+                email: data.customerEmail || data.formData.email || null,
                 paymentProcessed: true,
                 paymentOption: data.paymentOption,
                 paymentIntentId: data.paymentIntentId,
@@ -138,36 +140,36 @@ export default function PaymentSuccessPage() {
           ) : (
             <>
               {finalPaymentOption === 'service-only' ? (
-                <p className="text-lg text-gray-600 mb-6">
+            <p className="text-lg text-gray-600 mb-6">
                   Your appointment payment has been successfully completed. You will receive a confirmation email shortly.
-                </p>
-              ) : (
-                <p className="text-lg text-gray-600 mb-6">
-                  Your Letter of Medical Necessity has been generated and will be emailed to you within 24 hours
+            </p>
+          ) : (
+            <p className="text-lg text-gray-600 mb-6">
+              Your Letter of Medical Necessity has been generated and will be emailed to you within 24 hours
                   {finalPaymentOption === 'lmn-and-service' && (
                     <span className="text-gray-600">, and your appointment payment has also been successfully completed</span>
-                  )}
-                  <span>. You will receive a confirmation email shortly</span>
-                  {finalPaymentOption !== 'lmn-and-service' && '.'}
-                </p>
               )}
+              <span>. You will receive a confirmation email shortly</span>
+                  {finalPaymentOption !== 'lmn-and-service' && '.'}
+            </p>
+          )}
 
-              {/* Payment Confirmation (if present) */}
+          {/* Payment Confirmation (if present) */}
               {finalPaymentIntentId && (
-                <div className="text-left bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-2">Payment confirmed</h2>
-                  <div className="text-sm text-gray-700 space-y-1">
-                    <p>
+            <div className="text-left bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">Payment confirmed</h2>
+              <div className="text-sm text-gray-700 space-y-1">
+                <p>
                       Amount charged: <span className="font-semibold text-blue-700">${finalPaymentTotal || '—'}</span>
-                    </p>
-                    <p>
+                </p>
+                <p>
                       Payment for: <span className="font-semibold">{finalPaymentOption === 'service-only' ? 'Service' : (finalPaymentOption === 'lmn-and-service' ? 'LMN + Appointment' : 'LMN only')}</span>
-                    </p>
-                    <p className="text-gray-500">
+                </p>
+                <p className="text-gray-500">
                       Reference: <span className="font-mono">{finalPaymentIntentId}</span>
-                    </p>
-                  </div>
-                </div>
+                </p>
+              </div>
+            </div>
               )}
 
             </>

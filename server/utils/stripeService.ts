@@ -71,10 +71,12 @@ export async function createPaymentIntent(params: CreatePaymentIntentParams): Pr
     },
   };
 
-  // Add receipt email if provided
-  if (receiptEmail) {
+  // Add receipt email if provided (skip for service-only payments)
+  if (receiptEmail && paymentOption !== 'service-only') {
     paymentIntentParams.receipt_email = receiptEmail.trim(); // Trim whitespace
     console.log('Setting receipt_email on payment intent:', receiptEmail.trim());
+  } else if (paymentOption === 'service-only') {
+    console.log('Skipping Stripe receipt for service-only payment (custom receipt will be sent instead)');
   } else {
     console.log('No receipt_email provided - receipts will not be sent');
   }
@@ -360,8 +362,8 @@ export async function createCheckoutSession(params: CreateCheckoutSessionParams)
     console.log('Setting customer ID on checkout session:', customerId);
   }
 
-  // Add receipt email if provided (and customer not already set)
-  if (receiptEmail && !customerId) {
+  // Add receipt email if provided (and customer not already set) - skip for service-only payments
+  if (receiptEmail && !customerId && paymentOption !== 'service-only') {
     const trimmedEmail = receiptEmail.trim();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (emailRegex.test(trimmedEmail)) {
@@ -373,11 +375,13 @@ export async function createCheckoutSession(params: CreateCheckoutSessionParams)
     } else {
       console.warn('⚠️ Invalid email format provided:', trimmedEmail);
     }
-  } else if (receiptEmail && customerId) {
-    // If we have a customer ID, enable invoice creation
+  } else if (receiptEmail && customerId && paymentOption !== 'service-only') {
+    // If we have a customer ID, enable invoice creation (skip for service-only)
     sessionParams.invoice_creation = {
       enabled: true,
     };
+  } else if (paymentOption === 'service-only') {
+    console.log('Skipping Stripe receipt for service-only payment (custom receipt will be sent instead)');
   }
 
   // Handle different payment options for destination charges

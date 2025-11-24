@@ -112,14 +112,14 @@ export default function EmbeddedBooking() {
             using: serviceName 
           });
           return {
-            id: index + 1, // Use index as ID for URL params
-            serviceId: service.id, // Store actual service ID
+          id: index + 1, // Use index as ID for URL params
+          serviceId: service.id, // Store actual service ID
             name: serviceName,
             serviceType: serviceName, // Use the actual service name for LMN form
-            duration: formatDuration(service.duration_in_mins || 60),
-            url: service.booking_link || '',
-            icon: getServiceIcon(service.service_type),
-            price: service.service_pricing || null,
+          duration: formatDuration(service.duration_in_mins || 60),
+          url: service.booking_link || '',
+          icon: getServiceIcon(service.service_type),
+          price: service.service_pricing || null,
           };
         });
         
@@ -365,8 +365,8 @@ export default function EmbeddedBooking() {
                           cancelUrl: cancelUrl,
                           metadata: {
                             source: 'saga-health-service-only',
-                            serviceName: bookingOption.name,
-                            businessName: service.name,
+                      serviceName: bookingOption.name,
+                      businessName: service.name,
                           }
                         }),
                       });
@@ -385,7 +385,7 @@ export default function EmbeddedBooking() {
                     } catch (error) {
                       console.error('Error creating checkout session:', error);
                       alert(`Payment failed: ${error.message}`);
-                    }
+                    } 
                   }}
                   className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                 >
