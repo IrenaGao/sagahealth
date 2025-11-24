@@ -115,14 +115,14 @@ export async function fillHealthEquityForm(pdfDoc: PDFLibDocument, diagnosedCond
     firstPage.drawText('{{text}}', {
       x: 45, // Print Name of Licensed Practitioner
       y: height - 530, // Positioned under "Print Name of Licensed Practitioner" label
-      size: 10,
+      size: 15,
       color: rgb(1, 1, 1) // White color to make it invisible
     });
     
     firstPage.drawText('{{signature}}', {
       x: 45, // Signature of Licensed Practitioner
       y: height - 560, // Positioned under "Signature of Licensed Practitioner" label
-      size: 10,
+      size: 20,
       color: rgb(1, 1, 1) // White color to make it invisible
     });
     

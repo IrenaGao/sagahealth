@@ -249,7 +249,8 @@ export async function handleSignwellWebhook(payload: WebhookPayload): Promise<Ha
     
     // Look up customer email from Stripe payment intent metadata
     // The signwellDocumentGroupId is stored in payment intent metadata when the document is created
-    let recipientEmail = 'growth@mysagahealth.com'; // Fallback email
+    // This email will be used for the Resend API notification (not the SignWell recipient)
+    let recipientEmail: string | null = null;
     
     if (docId) {
       try {
@@ -264,17 +265,41 @@ export async function handleSignwellWebhook(payload: WebhookPayload): Promise<Ha
           const matchingPaymentIntent = searchResults.data[0];
           if (matchingPaymentIntent.metadata?.customerEmail) {
             recipientEmail = matchingPaymentIntent.metadata.customerEmail;
-            console.log(`Found customer email from Stripe payment intent: ${recipientEmail}`);
+            console.log(`✓ Found customer email from Stripe payment intent metadata: ${recipientEmail}`);
           } else {
-            console.warn(`Payment intent found but no customerEmail in metadata for document ${docId}`);
+            console.warn(`⚠ Payment intent found but no customerEmail in metadata for document ${docId}`);
+            // Try to get email from payment intent customer or receipt_email as fallback
+            if (matchingPaymentIntent.customer) {
+              try {
+                const customer = typeof matchingPaymentIntent.customer === 'object'
+                  ? matchingPaymentIntent.customer as any
+                  : await stripe.customers.retrieve(matchingPaymentIntent.customer as string);
+                if (customer && typeof customer === 'object' && customer.email) {
+                  recipientEmail = customer.email;
+                  console.log(`✓ Found customer email from Stripe customer object: ${recipientEmail}`);
+                }
+              } catch (customerError) {
+                console.error('Error retrieving customer:', customerError);
+              }
+            }
+            if (!recipientEmail && matchingPaymentIntent.receipt_email) {
+              recipientEmail = matchingPaymentIntent.receipt_email;
+              console.log(`✓ Found customer email from payment intent receipt_email: ${recipientEmail}`);
+            }
           }
         } else {
-          console.warn(`No payment intent found with signwellDocumentGroupId ${docId}, using fallback email`);
+          console.warn(`⚠ No payment intent found with signwellDocumentGroupId ${docId}`);
         }
       } catch (stripeError) {
         console.error('Error looking up customer email from Stripe:', stripeError);
-        // Continue with fallback email
       }
+    }
+    
+    // Use customer email if found, otherwise log warning (but don't send email to support)
+    if (!recipientEmail) {
+      console.error(`❌ Could not find customer email for SignWell document ${docId}. Email will not be sent.`);
+      console.error('This means the Resend API email will not be sent. Please check Stripe metadata.');
+      return { received: true }; // Return early to prevent sending email to wrong address
     }
 
     // Attempt to fetch the signed PDF from SignWell

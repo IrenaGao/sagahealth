@@ -428,7 +428,7 @@ app.post('/api/generate-lmn', async (req, res) => {
       paymentProcessed,
       paymentIntentId
     } = req.body;
-    
+
     // Get email from Stripe checkout session if not provided in body
     let email = emailFromBody;
     if (!email && paymentIntentId) {
