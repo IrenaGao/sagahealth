@@ -2,9 +2,14 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
-// Helper function to convert URL-friendly name back to potential business name matches
-const fromUrlFriendly = (urlName) => {
-  return urlName.replace(/_/g, ' ');
+// Helper to build Supabase ILIKE pattern from URL slug
+const buildBusinessNameQuery = (slug) => {
+  if (!slug) return '';
+  const decoded = decodeURIComponent(slug);
+  const normalized = decoded
+    .replace(/[_-]+/g, '%')
+    .replace(/%+/g, '%');
+  return `%${normalized}%`;
 };
 
 // Helper function to format duration
@@ -48,15 +53,15 @@ export default function BookingPage() {
     try {
       setLoading(true);
       
-      // Convert URL-friendly name back to search pattern
-      const searchPattern = fromUrlFriendly(businessName);
+      const searchPattern = buildBusinessNameQuery(businessName);
       
       // Fetch provider details
       const { data: providerData, error: providerError } = await supabase
         .from('providers')
         .select('*')
         .ilike('business_name', searchPattern)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
       if (providerError) {
         setError(`Error: ${providerError.message}`);

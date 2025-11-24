@@ -12,6 +12,15 @@ const formatBusinessName = (urlName) => {
     .join(' ');
 };
 
+const buildBusinessNameQuery = (slug) => {
+  if (!slug) return '';
+  const decoded = decodeURIComponent(slug);
+  const normalized = decoded
+    .replace(/[_-]+/g, '%')
+    .replace(/%+/g, '%');
+  return `%${normalized}%`;
+};
+
 export default function LMNForm() {
   const navigate = useNavigate();
   const { businessName: urlBusinessName } = useParams();
@@ -73,12 +82,13 @@ export default function LMNForm() {
   useEffect(() => {
     const fetchProviderAddress = async () => {
       try {
-        const searchPattern = urlBusinessName.replace(/_/g, ' ');
+        const searchPattern = buildBusinessNameQuery(urlBusinessName);
         const { data, error } = await supabase
           .from('providers')
           .select('address, booking_system')
           .ilike('business_name', searchPattern)
-          .single();
+          .limit(1)
+          .maybeSingle();
         
         if (!error && data) {
           if (data.address) {

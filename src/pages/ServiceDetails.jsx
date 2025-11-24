@@ -2,13 +2,18 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
-// Helper function to convert URL-friendly name back to potential business name matches
-const fromUrlFriendly = (urlName) => {
-  return urlName.replace(/_/g, ' ');
+// Helper function to build a Supabase ILIKE pattern from URL slug
+const buildBusinessNameQuery = (slug) => {
+  if (!slug) return '';
+  const decoded = decodeURIComponent(slug);
+  const normalized = decoded
+    .replace(/[_-]+/g, '%')
+    .replace(/%+/g, '%');
+  return `%${normalized}%`;
 };
 
 export default function ServiceDetails() {
-  const { businessName } = useParams();
+  const { businessName: businessSlug } = useParams();
   const navigate = useNavigate();
   const [service, setService] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -16,20 +21,20 @@ export default function ServiceDetails() {
 
   useEffect(() => {
     fetchServiceDetails();
-  }, [businessName]);
+  }, [businessSlug]);
 
   const fetchServiceDetails = async () => {
     try {
       setLoading(true);
       
-      // Convert URL-friendly name back to search pattern
-      const searchPattern = fromUrlFriendly(businessName);
+      const searchPattern = buildBusinessNameQuery(businessSlug);
       
       const { data, error } = await supabase
         .from('providers')
         .select('*')
         .ilike('business_name', searchPattern)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
       if (error) {
         setError(`Error: ${error.message}`);
@@ -205,14 +210,14 @@ export default function ServiceDetails() {
             <button
               onClick={() => {
                 if (service.bookingSystemEnabled === false) {
-                  navigate(`/book/${businessName}/lmn-form`, {
+                  navigate(`/book/${businessSlug}/lmn-form`, {
                     state: {
                       stripeAcctId: service.stripeAcctId,
                       bookingSystemEnabled: false,
                     },
                   });
                 } else {
-                  navigate(`/book/${businessName}`, {
+                  navigate(`/book/${businessSlug}`, {
                     state: { stripeAcctId: service.stripeAcctId },
                   });
                 }
