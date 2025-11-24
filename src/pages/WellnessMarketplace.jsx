@@ -12,7 +12,9 @@ export default function WellnessMarketplace() {
   const [showMap, setShowMap] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
   const listRefs = useRef({})
+  const ITEMS_PER_PAGE = 6
 
   // Fetch providers from Supabase
   useEffect(() => {
@@ -126,6 +128,17 @@ export default function WellnessMarketplace() {
     })
   }, [providers, searchQuery, selectedCategory])
 
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, selectedCategory, providers.length])
+
+  const totalPages = Math.max(1, Math.ceil(filteredListings.length / ITEMS_PER_PAGE))
+  const paginatedListings = filteredListings.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  )
+
   // Handle card click - highlight and scroll to on map
   const handleCardClick = (id) => {
     setHighlightedId(id)
@@ -196,10 +209,19 @@ export default function WellnessMarketplace() {
               </div>
             ) : (
               <div className="space-y-4 pb-6">
-                <p className="text-sm text-gray-600 mb-4">
-                  {filteredListings.length} {filteredListings.length === 1 ? 'result' : 'results'}
-                </p>
-                {filteredListings.map((listing) => (
+                <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
+                  <span>
+                    Showing {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredListings.length)}-
+                    {Math.min(currentPage * ITEMS_PER_PAGE, filteredListings.length)} of {filteredListings.length}{' '}
+                    {filteredListings.length === 1 ? 'result' : 'results'}
+                  </span>
+                  {totalPages > 1 && (
+                    <span>
+                      Page {currentPage} of {totalPages}
+                    </span>
+                  )}
+                </div>
+                {paginatedListings.map((listing) => (
                   <div
                     key={listing.id}
                     ref={(el) => {
@@ -213,6 +235,32 @@ export default function WellnessMarketplace() {
                     />
                   </div>
                 ))}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-4 pt-4">
+                    <button
+                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className={`px-4 py-2 rounded-lg border ${
+                        currentPage === 1
+                          ? 'text-gray-400 border-gray-200 bg-gray-50 cursor-not-allowed'
+                          : 'text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      ← Previous
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className={`px-4 py-2 rounded-lg border ${
+                        currentPage === totalPages
+                          ? 'text-gray-400 border-gray-200 bg-gray-50 cursor-not-allowed'
+                          : 'text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      Next →
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
