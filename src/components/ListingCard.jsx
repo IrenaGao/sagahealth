@@ -97,12 +97,25 @@ export default function ListingCard({ listing, isHighlighted, onClick }) {
             onClick={(e) => {
               e.stopPropagation();
               const urlFriendlyName = toUrlFriendly(listing.name || listing.business_name || `service-${listing.id}`);
-              navigate(`/book/${urlFriendlyName}`);
+              if (listing.bookingSystemEnabled === false) {
+                navigate(`/book/${urlFriendlyName}/lmn-form`, {
+                  state: {
+                    stripeAcctId: listing.stripeAcctId || null,
+                    bookingSystemEnabled: false,
+                  },
+                });
+              } else {
+                navigate(`/book/${urlFriendlyName}`, {
+                  state: { stripeAcctId: listing.stripeAcctId || null },
+                });
+              }
             }}
             className="inline-flex items-center gap-2 text-sm font-medium text-emerald-600 hover:text-emerald-700 mb-2"
           >
-            <span>📅</span>
-            <span>Book Now →</span>
+            <span>{listing.bookingSystemEnabled === false ? '📝' : '📅'}</span>
+            <span>
+              {listing.bookingSystemEnabled === false ? 'Get Your LMN Now →' : 'Book Now →'}
+            </span>
           </button>
         </div>
       </div>

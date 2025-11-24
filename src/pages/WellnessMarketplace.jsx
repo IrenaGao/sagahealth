@@ -84,7 +84,9 @@ export default function WellnessMarketplace() {
             image: provider.image || 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=450&fit=crop',
             neighborhood: '',
             city: '',
-            coordinates: coordinates
+            coordinates: coordinates,
+            bookingSystemEnabled: provider.booking_system !== false,
+            stripeAcctId: provider.stripe_acct_id || null,
           }
         })
         
