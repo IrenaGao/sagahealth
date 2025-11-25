@@ -166,6 +166,9 @@ app.get('/api/checkout-session', async (req, res) => {
       return res.status(400).json({ error: 'session_id is required' });
     }
 
+    console.log('Retrieving checkout session:', session_id);
+    console.log('Stripe key mode:', process.env.STRIPE_SECRET_KEY?.startsWith('sk_live_') ? 'LIVE' : 'TEST');
+    
     const session = await stripe.checkout.sessions.retrieve(session_id, {
       expand: ['payment_intent', 'payment_intent.payment_method', 'customer'],
     });
@@ -396,9 +399,35 @@ app.get('/api/checkout-session', async (req, res) => {
     });
   } catch (error: any) {
     console.error('Error retrieving checkout session:', error);
+    console.error('Session ID:', req.query.session_id);
+    console.error('Error type:', error.type);
+    console.error('Error code:', error.code);
+    
+    // Check if it's a mode mismatch
+    if (error.code === 'resource_missing') {
+      const sessionId = req.query.session_id as string;
+      const isLiveSession = sessionId.startsWith('cs_live_');
+      const isTestKey = process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_');
+      
+      if (isLiveSession && isTestKey) {
+        return res.status(400).json({ 
+          error: 'Mode mismatch',
+          details: 'The checkout session was created in live mode, but the server is configured for test mode. Please use a test mode session or update your Stripe secret key.',
+          sessionId: sessionId
+        });
+      } else if (!isLiveSession && !isTestKey) {
+        return res.status(400).json({ 
+          error: 'Mode mismatch',
+          details: 'The checkout session was created in test mode, but the server is configured for live mode. Please use a live mode session or update your Stripe secret key.',
+          sessionId: sessionId
+        });
+      }
+    }
+    
     res.status(500).json({ 
       error: 'Failed to retrieve checkout session',
-      details: error.message 
+      details: error.message,
+      code: error.code || 'unknown'
     });
   }
 });
@@ -541,18 +570,18 @@ app.post('/api/generate-lmn', async (req, res) => {
     console.log('Generating LMN for:', lmnInput);
 
     // Generate the LMN
-    // const lmnResult = await generateLMN(JSON.stringify(lmnInput));
-    const lmnResult = `Based on my searches, I'll now create a Letter of Medical Necessity for massage therapy:
+    const lmnResult = await generateLMN(JSON.stringify(lmnInput));
+//     const lmnResult = `Based on my searches, I'll now create a Letter of Medical Necessity for massage therapy:
 
-\`\`\`json
-{
-  "reported_diagnosis": "Anxiety and Depression with Chronic Pain risk",
-  "treatment": "The patient is recommended to undergo regular massage therapy sessions at Tension Intervention. The treatment plan includes twice-monthly 60-minute therapeutic massage sessions focusing on myofascial release techniques, trigger point therapy, and Swedish massage methods. These sessions will specifically target areas of muscle tension that exacerbate anxiety symptoms and contribute to pain patterns. The therapist at Tension Intervention will document progress after each session, adjusting techniques as needed to address the patient's evolving symptoms as part of the management plan for 12 months.",
-  "clinical_rationale": "The patient presents with diagnosed anxiety (F41.9) and depression (F32.9), with a family history of depression and chronic pain, placing her at elevated risk for developing chronic pain conditions herself. Research has demonstrated that massage therapy is an effective complementary treatment for both anxiety and depression. A systematic review (PMID: 28891221; Field T, 2016) found that massage therapy significantly reduced anxiety and depression symptoms through multiple physiological mechanisms, including reduced cortisol levels and increased serotonin and dopamine. Additionally, regular massage therapy at Tension Intervention can help prevent the development of chronic pain by addressing muscle tension patterns before they become persistent pain conditions. The patient's expressed desire to 'be healthier' aligns with this preventive approach.",
-  "role_the_service_provides": "Tension Intervention's massage therapy services provide a non-pharmacological intervention that reduces physiological markers of stress, decreases muscle tension, and improves mood regulation to complement standard treatments for anxiety and depression.",
-  "conclusion": "Given the patient's diagnosed conditions of anxiety and depression, family history of chronic pain, and the substantial clinical evidence supporting massage therapy's efficacy for these conditions, the requested massage therapy services at Tension Intervention are medically necessary as part of the patient's comprehensive treatment plan."
-}
-\`\`\``;
+// \`\`\`json
+// {
+//   "reported_diagnosis": "Anxiety and Depression with Chronic Pain risk",
+//   "treatment": "The patient is recommended to undergo regular massage therapy sessions at Tension Intervention. The treatment plan includes twice-monthly 60-minute therapeutic massage sessions focusing on myofascial release techniques, trigger point therapy, and Swedish massage methods. These sessions will specifically target areas of muscle tension that exacerbate anxiety symptoms and contribute to pain patterns. The therapist at Tension Intervention will document progress after each session, adjusting techniques as needed to address the patient's evolving symptoms as part of the management plan for 12 months.",
+//   "clinical_rationale": "The patient presents with diagnosed anxiety (F41.9) and depression (F32.9), with a family history of depression and chronic pain, placing her at elevated risk for developing chronic pain conditions herself. Research has demonstrated that massage therapy is an effective complementary treatment for both anxiety and depression. A systematic review (PMID: 28891221; Field T, 2016) found that massage therapy significantly reduced anxiety and depression symptoms through multiple physiological mechanisms, including reduced cortisol levels and increased serotonin and dopamine. Additionally, regular massage therapy at Tension Intervention can help prevent the development of chronic pain by addressing muscle tension patterns before they become persistent pain conditions. The patient's expressed desire to 'be healthier' aligns with this preventive approach.",
+//   "role_the_service_provides": "Tension Intervention's massage therapy services provide a non-pharmacological intervention that reduces physiological markers of stress, decreases muscle tension, and improves mood regulation to complement standard treatments for anxiety and depression.",
+//   "conclusion": "Given the patient's diagnosed conditions of anxiety and depression, family history of chronic pain, and the substantial clinical evidence supporting massage therapy's efficacy for these conditions, the requested massage therapy services at Tension Intervention are medically necessary as part of the patient's comprehensive treatment plan."
+// }
+// \`\`\``;
 
     // Log the generated LMN result
     console.log('\n========== LMN GENERATION COMPLETE ==========');
@@ -578,10 +607,10 @@ app.post('/api/generate-lmn', async (req, res) => {
       pdfBase64,
       fileName: `LMN_${firstName}_${lastName}_${new Date().toISOString().split('T')[0]}.pdf`,
       // Always send the LMN signature request to support email
-      recipientEmail: 'support@mysagahealth.com',
+      recipientEmail: 'derekjyan123@gmail.com',
       recipientName: `${firstName} ${lastName}`,
-      subject: 'Please sign your Letter of Medical Necessity',
-      message: `Hi ${firstName}, please review and sign your Letter of Medical Necessity for ${hsaProvider}. This document is required for HSA/FSA reimbursement.`
+      subject: `Please sign ${firstName}'s Letter of Medical Necessity`,
+      message: `Hi Derek, please review and sign ${firstName}'s Letter of Medical Necessity. This document is required for HSA/FSA reimbursement.`
     });
 
     console.log('SignWell signature request created:', signwellResult);
