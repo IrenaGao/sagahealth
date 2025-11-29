@@ -121,6 +121,7 @@ export default function BookingPage() {
           serviceId: service.id, // Store actual service ID
           name: service.service_type || 'Service',
           serviceType: service.service_type, // Store service type for LMN form
+          serviceTypeDesc: service.overall_desc || null, // Store service type description
           duration: formatDuration(service.duration_in_mins || 60),
           durationInMins: service.duration_in_mins || 60, // Store raw minutes for sorting
           description: `${service.service_type} session`,
@@ -225,7 +226,7 @@ export default function BookingPage() {
         </div>
 
         {/* Booking Options */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
+        <div className="bg-white rounded-2xl shadow-lg p-6 pb-6">
           {!service.complete ? (
             // Coming Soon Message
             <div className="text-center py-16">
@@ -253,103 +254,77 @@ export default function BookingPage() {
                 </p>
               </div>
 
-          {/* Massage Therapy Section */}
-          <div className="mb-8">
-            <h3 className="text-xl font-bold text-gray-900 mb-2 flex items-center gap-2">
-              <span className="text-2xl">💆</span>
-              Massage Therapy
-            </h3>
-            <div className="mb-4">
-              <p className="text-gray-700 mb-2">
-                Personalized treatment to address areas of restriction and optimization of mobility.
-              </p>
-              <p className="text-sm text-gray-600 italic">
-                Myoskeletal Alignment, Graston Technique, Functional Mobility, Deep Tissue, TMJ Release, Prenatal/Postpartum Massage
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {bookingOptions.filter(option => option.icon === '💆').map((option) => (
-                <div
-                  key={option.id}
-                  onClick={() => navigate(`/book/${businessName}/schedule?bookingOption=${option.id}`, {
-                    state: { stripeAcctId: stripeAcctId }
-                  })}
-                  className="group relative bg-gradient-to-br from-emerald-50 to-white border-2 border-gray-200 rounded-xl p-6 hover:border-emerald-500 hover:shadow-lg transition-all duration-200 cursor-pointer"
-                >
-                  {/* Service Duration and Price */}
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-lg font-semibold text-gray-900 group-hover:text-emerald-600 transition-colors">
-                      {option.duration}
-                    </h4>
-                    
-                    {/* Price Tag */}
-                    {option.price && (
-                      <span className="inline-block px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium rounded-lg ml-2 flex-shrink-0">
-                        ${option.price}
-                      </span>
-                    )}
-                  </div>
-                  
-                  {/* Book Now Button */}
-                  <div className="flex items-center gap-2 text-emerald-600 font-medium group-hover:text-emerald-700">
-                    <span>Book Now</span>
-                    <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                    </svg>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+              {/* Dynamically render service sections grouped by service_type */}
+              {(() => {
+                // Group booking options by service_type
+                const groupedByServiceType = bookingOptions.reduce((acc, option) => {
+                  const serviceType = option.serviceType || 'Other';
+                  if (!acc[serviceType]) {
+                    acc[serviceType] = [];
+                  }
+                  acc[serviceType].push(option);
+                  return acc;
+                }, {});
 
-          {/* Personal Training Section */}
-          <div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2 flex items-center gap-2">
-              <span className="text-2xl">💪</span>
-              Personal Training
-            </h3>
-            <div className="mb-4">
-              <p className="text-gray-700 mb-2">
-                1-1 and Couples training sessions to achieve individual goals and improve quality of life.
-              </p>
-              <p className="text-sm text-gray-600 italic">
-                Powerlifting Technique, Weight Loss, Sport Performance, Injury Prevention, Functional Mobility, Nutrition Coaching
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {bookingOptions.filter(option => option.icon === '💪').map((option) => (
-                <div
-                  key={option.id}
-                  onClick={() => navigate(`/book/${businessName}/schedule?bookingOption=${option.id}`, {
-                    state: { stripeAcctId: stripeAcctId }
-                  })}
-                  className="group relative bg-gradient-to-br from-emerald-50 to-white border-2 border-gray-200 rounded-xl p-6 hover:border-emerald-500 hover:shadow-lg transition-all duration-200 cursor-pointer"
-                >
-                  {/* Service Duration and Price */}
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-lg font-semibold text-gray-900 group-hover:text-emerald-600 transition-colors">
-                      {option.duration}
-                    </h4>
-                    
-                    {/* Price Tag */}
-                    {option.price && (
-                      <span className="inline-block px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium rounded-lg ml-2 flex-shrink-0">
-                        ${option.price}
-                      </span>
-                    )}
-                  </div>
-                  
-                  {/* Book Now Button */}
-                  <div className="flex items-center gap-2 text-emerald-600 font-medium group-hover:text-emerald-700">
-                    <span>Book Now</span>
-                    <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                    </svg>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+                // Get unique service types
+                const serviceTypes = Object.keys(groupedByServiceType);
+
+                return serviceTypes.map((serviceType, index) => {
+                  const optionsForType = groupedByServiceType[serviceType];
+                  // Get the description from the first option of this type (they should all have the same description)
+                  const serviceTypeDesc = optionsForType[0]?.serviceTypeDesc;
+                  const icon = optionsForType[0]?.icon || '✨';
+
+                  return (
+                    <div key={serviceType} className={index < serviceTypes.length - 1 ? 'mb-8' : 'mb-4'}>
+                      <h3 className="text-xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+                        <span className="text-2xl">{icon}</span>
+                        {serviceType}
+                      </h3>
+                      {serviceTypeDesc && (
+                        <div className="mb-4">
+                          <p className="text-gray-700 mb-2">
+                            {serviceTypeDesc}
+                          </p>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {optionsForType.map((option) => (
+                          <div
+                            key={option.id}
+                            onClick={() => navigate(`/book/${businessName}/schedule?bookingOption=${option.id}`, {
+                              state: { stripeAcctId: stripeAcctId }
+                            })}
+                            className="group relative bg-gradient-to-br from-emerald-50 to-white border-2 border-gray-200 rounded-xl p-6 hover:border-emerald-500 hover:shadow-lg transition-all duration-200 cursor-pointer"
+                          >
+                            {/* Service Duration and Price */}
+                            <div className="flex items-center justify-between mb-4">
+                              <h4 className="text-lg font-semibold text-gray-900 group-hover:text-emerald-600 transition-colors">
+                                {option.duration}
+                              </h4>
+                              
+                              {/* Price Tag */}
+                              {option.price && (
+                                <span className="inline-block px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium rounded-lg ml-2 flex-shrink-0">
+                                  ${option.price}
+                                </span>
+                              )}
+                            </div>
+                            
+                            {/* Book Now Button */}
+                            <div className="flex items-center gap-2 text-emerald-600 font-medium group-hover:text-emerald-700">
+                              <span>Book Now</span>
+                              <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                              </svg>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
             </>
           )}
         </div>
