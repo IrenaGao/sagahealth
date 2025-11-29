@@ -57,7 +57,6 @@ export async function fillHealthEquityForm(pdfDoc: PDFLibDocument, diagnosedCond
         // Try to find and fill specific fields
         fields.forEach(field => {
           const fieldName = field.getName().toLowerCase();
-          console.log(`Processing field: ${fieldName}`);
           
           if (fieldName.includes('medical') || fieldName.includes('condition')) {
             console.log('Filling medical condition field');

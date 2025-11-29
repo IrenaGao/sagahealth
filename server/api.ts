@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import Stripe from 'stripe';
 import { Resend } from 'resend';
+import { createClient } from '@supabase/supabase-js';
 import { generateLMN } from './lmn-generator.js';
 import { generateLMNPDFBuffer, generateServiceReceiptPDF } from './utils/pdfGenerator.js';
 import { createSignatureRequest, createSignwellWebhook, handleSignwellWebhook } from './utils/signwellService.js';
@@ -17,6 +18,12 @@ const __dirname = dirname(__filename);
 
 // Load environment variables
 dotenv.config({ path: join(__dirname, '../.env') });
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.VITE_SUPABASE_URL || '',
+  process.env.VITE_SUPABASE_ANON_KEY || ''
+);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -114,6 +121,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
       firstHealthCondition,
       businessName,
       businessAddress,
+      takeRate,
       customerFirstName,
       customerLastName,
       receiptEmail,
@@ -139,6 +147,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
       firstHealthCondition,
       businessName,
       businessAddress,
+      takeRate,
       customerFirstName,
       customerLastName,
       receiptEmail,
@@ -570,24 +579,66 @@ app.post('/api/generate-lmn', async (req, res) => {
     console.log('Generating LMN for:', lmnInput);
 
     // Generate the LMN
-    const lmnResult = await generateLMN(JSON.stringify(lmnInput));
-//     const lmnResult = `Based on my searches, I'll now create a Letter of Medical Necessity for massage therapy:
+    // const lmnResult = await generateLMN(JSON.stringify(lmnInput));
+    const lmnResult = `Based on my searches, I'll now create a Letter of Medical Necessity for massage therapy:
 
-// \`\`\`json
-// {
-//   "reported_diagnosis": "Anxiety and Depression with Chronic Pain risk",
-//   "treatment": "The patient is recommended to undergo regular massage therapy sessions at Tension Intervention. The treatment plan includes twice-monthly 60-minute therapeutic massage sessions focusing on myofascial release techniques, trigger point therapy, and Swedish massage methods. These sessions will specifically target areas of muscle tension that exacerbate anxiety symptoms and contribute to pain patterns. The therapist at Tension Intervention will document progress after each session, adjusting techniques as needed to address the patient's evolving symptoms as part of the management plan for 12 months.",
-//   "clinical_rationale": "The patient presents with diagnosed anxiety (F41.9) and depression (F32.9), with a family history of depression and chronic pain, placing her at elevated risk for developing chronic pain conditions herself. Research has demonstrated that massage therapy is an effective complementary treatment for both anxiety and depression. A systematic review (PMID: 28891221; Field T, 2016) found that massage therapy significantly reduced anxiety and depression symptoms through multiple physiological mechanisms, including reduced cortisol levels and increased serotonin and dopamine. Additionally, regular massage therapy at Tension Intervention can help prevent the development of chronic pain by addressing muscle tension patterns before they become persistent pain conditions. The patient's expressed desire to 'be healthier' aligns with this preventive approach.",
-//   "role_the_service_provides": "Tension Intervention's massage therapy services provide a non-pharmacological intervention that reduces physiological markers of stress, decreases muscle tension, and improves mood regulation to complement standard treatments for anxiety and depression.",
-//   "conclusion": "Given the patient's diagnosed conditions of anxiety and depression, family history of chronic pain, and the substantial clinical evidence supporting massage therapy's efficacy for these conditions, the requested massage therapy services at Tension Intervention are medically necessary as part of the patient's comprehensive treatment plan."
-// }
-// \`\`\``;
+\`\`\`json
+{
+  "reported_diagnosis": "Anxiety and Depression with Chronic Pain risk",
+  "treatment": "The patient is recommended to undergo regular massage therapy sessions at Tension Intervention. The treatment plan includes twice-monthly 60-minute therapeutic massage sessions focusing on myofascial release techniques, trigger point therapy, and Swedish massage methods. These sessions will specifically target areas of muscle tension that exacerbate anxiety symptoms and contribute to pain patterns. The therapist at Tension Intervention will document progress after each session, adjusting techniques as needed to address the patient's evolving symptoms as part of the management plan for 12 months.",
+  "clinical_rationale": "The patient presents with diagnosed anxiety (F41.9) and depression (F32.9), with a family history of depression and chronic pain, placing her at elevated risk for developing chronic pain conditions herself. Research has demonstrated that massage therapy is an effective complementary treatment for both anxiety and depression. A systematic review (PMID: 28891221; Field T, 2016) found that massage therapy significantly reduced anxiety and depression symptoms through multiple physiological mechanisms, including reduced cortisol levels and increased serotonin and dopamine. Additionally, regular massage therapy at Tension Intervention can help prevent the development of chronic pain by addressing muscle tension patterns before they become persistent pain conditions. The patient's expressed desire to 'be healthier' aligns with this preventive approach.",
+  "role_the_service_provides": "Tension Intervention's massage therapy services provide a non-pharmacological intervention that reduces physiological markers of stress, decreases muscle tension, and improves mood regulation to complement standard treatments for anxiety and depression.",
+  "conclusion": "Given the patient's diagnosed conditions of anxiety and depression, family history of chronic pain, and the substantial clinical evidence supporting massage therapy's efficacy for these conditions, the requested massage therapy services at Tension Intervention are medically necessary as part of the patient's comprehensive treatment plan."
+}
+\`\`\``;
 
     // Log the generated LMN result
     console.log('\n========== LMN GENERATION COMPLETE ==========');
     console.log('Generated LMN Result:');
     // console.log(lmnResult);
     console.log('=============================================\n');
+
+    // Find eligible nurse practitioners based on state
+    let selectedNurse: { id: any; first_name: string; last_name: string; email: string } | null = null;
+    if (state) {
+      try {
+        console.log(`Looking for nurse practitioners licensed in state: ${state}`);
+        const { data: nurses, error: nursesError } = await supabase
+          .from('nurse_practitioners')
+          .select('id, first_name, last_name, email, states');
+        console.log("data", nurses)
+        
+        if (nursesError) {
+          console.error('Error fetching nurse practitioners:', nursesError);
+        } else if (nurses && nurses.length > 0) {
+          // Filter nurses where the state is in their states array
+          const eligibleNurses = nurses
+            .filter((nurse: any) => {
+              const nurseStates = Array.isArray(nurse.states) ? nurse.states : [];
+              return nurseStates.includes(state);
+            })
+            .map((nurse: any) => ({
+              id: nurse.id,
+              first_name: nurse.first_name,
+              last_name: nurse.last_name,
+              email: nurse.email
+            }));
+          
+          console.log(`Found ${eligibleNurses.length} eligible nurse(s) for state ${state}`);
+          
+          if (eligibleNurses.length > 0) {
+            // Randomly select one nurse
+            const randomIndex = Math.floor(Math.random() * eligibleNurses.length);
+            selectedNurse = eligibleNurses[randomIndex];
+            console.log(`Selected nurse: ${selectedNurse.first_name} ${selectedNurse.last_name} (${selectedNurse.email})`);
+          } else {
+            console.warn(`No eligible nurses found for state ${state}`);
+          }
+        }
+      } catch (nurseError) {
+        console.error('Error processing nurse practitioner selection:', nurseError);
+      }
+    }
 
     // Generate PDF from LMN (returns base64 string)
     console.log('Generating PDF...');
@@ -597,20 +648,25 @@ app.post('/api/generate-lmn', async (req, res) => {
       hsaProvider,
       diagnosedConditions: diagnosedConditions || [],
       desiredProduct: desiredProduct || 'Wellness service/product',
-      businessName: businessName || ''
+      businessName: businessName || '',
+      nurseFirstName: selectedNurse?.first_name || null,
+      nurseLastName: selectedNurse?.last_name || null
     });
     console.log('PDF generated successfully (in memory only, not saved to disk)');
 
     // Send to SignWell for signature
     console.log('Sending to SignWell for e-signature...');
+    const recipientEmail = selectedNurse?.email || 'irenagao2013@gmail.com';
+    console.log("RECIPIENT EMAIL", recipientEmail);
+    // Use patient's name from LMN form for recipientName
+    const recipientName = `${firstName} ${lastName}`;
+    
     const signwellResult = await createSignatureRequest({
       pdfBase64,
       fileName: `LMN_${firstName}_${lastName}_${new Date().toISOString().split('T')[0]}.pdf`,
-      // Always send the LMN signature request to support email
-      recipientEmail: 'derekjyan123@gmail.com',
-      recipientName: `${firstName} ${lastName}`,
-      subject: `Please sign ${firstName}'s Letter of Medical Necessity`,
-      message: `Hi Derek, please review and sign ${firstName}'s Letter of Medical Necessity. This document is required for HSA/FSA reimbursement.`
+      recipientEmail: "irenagao@mysagahealth.com",
+      recipientName: recipientName,
+      selectedNurse: selectedNurse
     });
 
     console.log('SignWell signature request created:', signwellResult);

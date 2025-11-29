@@ -11,6 +11,7 @@ export default function StripeCheckoutButton({
   firstHealthCondition,
   businessName,
   businessAddress,
+  takeRate,
   receiptEmail,
   formData,
   onError 
@@ -60,6 +61,7 @@ export default function StripeCheckoutButton({
           firstHealthCondition: firstHealthCondition,
           businessName: businessName,
           businessAddress: businessAddress,
+          takeRate: takeRate,
           customerFirstName: formData?.firstName || null,
           customerLastName: formData?.lastName || null,
           receiptEmail: receiptEmail,

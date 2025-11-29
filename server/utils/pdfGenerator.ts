@@ -25,6 +25,8 @@ interface UserInfo {
   diagnosedConditions?: string[];
   desiredProduct?: string;
   businessName?: string;
+  nurseFirstName?: string | null;
+  nurseLastName?: string | null;
 }
 
 // Get current file directory
@@ -239,7 +241,11 @@ export async function generateLMNPDFBuffer(lmnData: string, userInfo: UserInfo):
       // To/From Fields
       doc.text('To: HSA/FSA Administrator', leftMargin, doc.y);
       doc.moveDown(0.5);
-      doc.text('From: Derek Yan, MD', leftMargin, doc.y);
+      // Use nurse practitioner name if available, otherwise default
+      const fromName = userInfo.nurseFirstName && userInfo.nurseLastName
+        ? `${userInfo.nurseFirstName} ${userInfo.nurseLastName}, NP`
+        : 'Derek Yan, MD';
+      doc.text(`From: ${fromName}`, leftMargin, doc.y);
       doc.moveDown(1);
 
       // Patient Information Box

@@ -19,8 +19,11 @@ interface SignatureRequestParams {
   fileName: string;
   recipientEmail: string;
   recipientName: string;
-  subject?: string;
-  message?: string;
+  selectedNurse: {
+    first_name: string;
+    last_name: string;
+    email: string;
+  } | null;
 }
 
 export async function createSignatureRequest(params: SignatureRequestParams): Promise<any> {
@@ -34,8 +37,7 @@ export async function createSignatureRequest(params: SignatureRequestParams): Pr
       fileName,
       recipientEmail,
       recipientName,
-      subject = 'Please sign your Letter of Medical Necessity',
-      message = 'Please review and sign your Letter of Medical Necessity. This document is required for HSA/FSA reimbursement.'
+      selectedNurse
     } = params;
 
     // Step 1: Upload the PDF document
@@ -71,75 +73,13 @@ export async function createSignatureRequest(params: SignatureRequestParams): Pr
           file_base64: pdfBase64
         }
       ],
-    //   fields: [
-    //     [
-    //         {
-    //             "x": 72,
-    //             "y": 620,
-    //             "page": 2,
-    //             "recipient_id": "1",
-    //             "type": "signature",
-    //             "required": true,
-    //         },
-    //         {
-    //             "x": 180,
-    //             "y": 380,
-    //             "page": 2,
-    //             "recipient_id": "1",
-    //             "type": "text",
-    //             "required": true,
-    //             "label": "Provider Name"
-    //         },
-    //         {
-    //             "x": 420,
-    //             "y": 380,
-    //             "page": 2,
-    //             "recipient_id": "1",
-    //             "type": "text",
-    //             "required": true,
-    //             "label": "Provider Address"
-    //         },
-    //         {
-    //             "x": 235,
-    //             "y": 410,
-    //             "page": 2,
-    //             "recipient_id": "1",
-    //             "type": "text",
-    //             "required": true,
-    //             "label": "Provider Phone Number"
-    //         },
-    //         {
-    //             "x": 450,
-    //             "y": 410,
-    //             "page": 2,
-    //             "recipient_id": "1",
-    //             "type": "text",
-    //             "required": true,
-    //             "label": "Provider Email"
-    //         },
-    //         {
-    //             "x": 195,
-    //             "y": 440,
-    //             "page": 2,
-    //             "recipient_id": "1",
-    //             "type": "text",
-    //             "required": true,
-    //             "label": "Provider License"
-    //         },
-    //         {
-    //             "x": 458,
-    //             "y": 440,
-    //             "page": 2,
-    //             "recipient_id": "1",
-    //             "type": "text",
-    //             "required": true,
-    //             "label": "License State"
-    //         }
-    //     ]
-    //   ],
       reminders: true,
       text_tags: true,
-      api_application_id: null
+      api_application_id: null,
+      subject: `Please sign ${recipientName}'s Letter of Medical Necessity`,
+      message: selectedNurse 
+        ? `Hi ${selectedNurse.first_name}, please review and sign ${recipientName}'s Letter of Medical Necessity. This document is required for HSA/FSA reimbursement.`
+        : `Hi Derek, please review and sign ${recipientName}'s Letter of Medical Necessity. This document is required for HSA/FSA reimbursement.`
     };
 
     // console.log('Signature request payload:', JSON.stringify(signatureRequestData, null, 2));

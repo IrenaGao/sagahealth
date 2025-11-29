@@ -277,51 +277,51 @@ export default function BookingPage() {
 
                   return (
                     <div key={serviceType} className={index < serviceTypes.length - 1 ? 'mb-8' : 'mb-4'}>
-                      <h3 className="text-xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+            <h3 className="text-xl font-bold text-gray-900 mb-2 flex items-center gap-2">
                         <span className="text-2xl">{icon}</span>
                         {serviceType}
-                      </h3>
+            </h3>
                       {serviceTypeDesc && (
-                        <div className="mb-4">
-                          <p className="text-gray-700 mb-2">
+            <div className="mb-4">
+              <p className="text-gray-700 mb-2">
                             {serviceTypeDesc}
-                          </p>
-                        </div>
+              </p>
+            </div>
                       )}
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         {optionsForType.map((option) => (
-                          <div
-                            key={option.id}
+                <div
+                  key={option.id}
                             onClick={() => navigate(`/book/${businessName}/schedule?bookingOption=${option.id}`, {
                               state: { stripeAcctId: stripeAcctId }
                             })}
-                            className="group relative bg-gradient-to-br from-emerald-50 to-white border-2 border-gray-200 rounded-xl p-6 hover:border-emerald-500 hover:shadow-lg transition-all duration-200 cursor-pointer"
-                          >
-                            {/* Service Duration and Price */}
-                            <div className="flex items-center justify-between mb-4">
-                              <h4 className="text-lg font-semibold text-gray-900 group-hover:text-emerald-600 transition-colors">
-                                {option.duration}
-                              </h4>
-                              
-                              {/* Price Tag */}
-                              {option.price && (
-                                <span className="inline-block px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium rounded-lg ml-2 flex-shrink-0">
-                                  ${option.price}
-                                </span>
-                              )}
-                            </div>
-                            
-                            {/* Book Now Button */}
-                            <div className="flex items-center gap-2 text-emerald-600 font-medium group-hover:text-emerald-700">
-                              <span>Book Now</span>
-                              <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                              </svg>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                  className="group relative bg-gradient-to-br from-emerald-50 to-white border-2 border-gray-200 rounded-xl p-6 hover:border-emerald-500 hover:shadow-lg transition-all duration-200 cursor-pointer"
+                >
+                  {/* Service Duration and Price */}
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-lg font-semibold text-gray-900 group-hover:text-emerald-600 transition-colors">
+                      {option.duration}
+                    </h4>
+                    
+                    {/* Price Tag */}
+                    {option.price && (
+                      <span className="inline-block px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium rounded-lg ml-2 flex-shrink-0">
+                        ${option.price}
+                      </span>
+                    )}
+                  </div>
+                  
+                  {/* Book Now Button */}
+                  <div className="flex items-center gap-2 text-emerald-600 font-medium group-hover:text-emerald-700">
+                    <span>Book Now</span>
+                    <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
                   );
                 });
               })()}

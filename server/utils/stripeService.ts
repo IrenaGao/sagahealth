@@ -1,5 +1,9 @@
 import stripe from '../stripe.js';
 
+// Constants
+const LMN_FEE = 20; // $20 LMN fee
+const takeRate = 0.1; // 8% take rate
+
 interface CreatePaymentIntentParams {
   amount: number;
   currency?: string;
@@ -27,6 +31,7 @@ interface CreateCheckoutSessionParams {
   firstHealthCondition?: string | null;
   businessName?: string | null;
   businessAddress?: string | null;
+  takeRate?: number | null;
   customerFirstName?: string | null;
   customerLastName?: string | null;
   receiptEmail?: string | null;
@@ -58,8 +63,6 @@ export async function createPaymentIntent(params: CreatePaymentIntentParams): Pr
   }
 
   const amountInCents = Math.round(amount * 100);
-  const LMN_FEE = 20; // $20 LMN fee
-  const takeRate = 0.08; // 8% take rate
 
   // Build payment intent parameters
   const paymentIntentParams: any = {
@@ -173,6 +176,7 @@ export async function createCheckoutSession(params: CreateCheckoutSessionParams)
     firstHealthCondition,
     businessName,
     businessAddress,
+    takeRate: providerTakeRate,
     customerFirstName,
     customerLastName,
     receiptEmail,
@@ -192,8 +196,8 @@ export async function createCheckoutSession(params: CreateCheckoutSessionParams)
   }
 
   const amountInCents = Math.round(amount * 100);
-  const LMN_FEE = 20; // $20 LMN fee
-  const takeRate = 0.08; // 8% take rate
+  // Use provider's take_rate if provided, otherwise use default
+  const effectiveTakeRate = providerTakeRate !== null && providerTakeRate !== undefined ? providerTakeRate : takeRate;
 
   // Build line items for checkout
   const lineItems: any[] = [];
@@ -402,9 +406,9 @@ export async function createCheckoutSession(params: CreateCheckoutSessionParams)
     sessionParams.metadata = enhancedMetadata;
     console.log('LMN only payment: All funds go to platform, no destination charge');
   } else if (paymentOption === 'lmn-and-service' && stripeAcctId && servicePrice) {
-    // LMN + Service: $20 stays with platform, service amount goes to merchant with 8% take rate
+    // LMN + Service: $20 stays with platform, service amount goes to merchant with custom take rate
     const serviceAmountInCents = Math.round(servicePrice * 100);
-    const platformFeeAmount = Math.round(serviceAmountInCents * takeRate);
+    const platformFeeAmount = Math.round(serviceAmountInCents * effectiveTakeRate);
     const merchantReceivesAmount = serviceAmountInCents - platformFeeAmount;
     
     // Use payment_intent_data to set up destination charge
@@ -412,7 +416,7 @@ export async function createCheckoutSession(params: CreateCheckoutSessionParams)
     sessionParams.payment_intent_data = {
       transfer_data: {
         destination: stripeAcctId,
-        amount: merchantReceivesAmount, // Transfer the service amount minus 8% fee
+        amount: merchantReceivesAmount, // Transfer the service amount minus take rate fee
       },
       metadata: enhancedMetadata,
     };
@@ -422,12 +426,12 @@ export async function createCheckoutSession(params: CreateCheckoutSessionParams)
     console.log(`  Total amount: $${amount.toFixed(2)}`);
     console.log(`  LMN fee (platform): $${LMN_FEE.toFixed(2)}`);
     console.log(`  Service amount: $${servicePrice.toFixed(2)}`);
-    console.log(`  Platform take (8% of service): $${(platformFeeAmount / 100).toFixed(2)}`);
+    console.log(`  Platform take (${(effectiveTakeRate * 100).toFixed(1)}% of service): $${(platformFeeAmount / 100).toFixed(2)}`);
     console.log(`  Merchant receives: $${(merchantReceivesAmount / 100).toFixed(2)}`);
     console.log(`  Platform total: $${((amountInCents - merchantReceivesAmount) / 100).toFixed(2)}`);
   } else if (paymentOption === 'service-only' && stripeAcctId) {
-    // Service only: Full amount goes to merchant with 8% take rate
-    const applicationFeeAmount = Math.round(amountInCents * takeRate);
+    // Service only: Full amount goes to merchant with custom take rate
+    const applicationFeeAmount = Math.round(amountInCents * effectiveTakeRate);
     
     sessionParams.payment_intent_data = {
       transfer_data: {
@@ -438,10 +442,10 @@ export async function createCheckoutSession(params: CreateCheckoutSessionParams)
     };
     sessionParams.metadata = enhancedMetadata;
     
-    console.log(`Service only payment: ${stripeAcctId} with ${takeRate * 100}% take rate (${applicationFeeAmount} cents)`);
+    console.log(`Service only payment: ${stripeAcctId} with ${(effectiveTakeRate * 100).toFixed(1)}% take rate (${applicationFeeAmount} cents)`);
   } else if (stripeAcctId) {
     // Fallback: If stripeAcctId is provided but no specific payment option, use default behavior
-    const applicationFeeAmount = Math.round(amountInCents * takeRate);
+    const applicationFeeAmount = Math.round(amountInCents * effectiveTakeRate);
     sessionParams.payment_intent_data = {
       transfer_data: {
         destination: stripeAcctId,
@@ -450,7 +454,7 @@ export async function createCheckoutSession(params: CreateCheckoutSessionParams)
       metadata: enhancedMetadata,
     };
     sessionParams.metadata = enhancedMetadata;
-    console.log(`Using destination charge: ${stripeAcctId} with ${takeRate * 100}% take rate (${applicationFeeAmount} cents)`);
+    console.log(`Using destination charge: ${stripeAcctId} with ${(effectiveTakeRate * 100).toFixed(1)}% take rate (${applicationFeeAmount} cents)`);
   } else {
     sessionParams.metadata = enhancedMetadata;
     console.log('No stripeAcctId provided, creating standard checkout session');

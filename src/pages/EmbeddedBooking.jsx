@@ -83,6 +83,7 @@ export default function EmbeddedBooking() {
         address: providerData.address || '',
         rating: providerData.rating || null,
         reviewCount: providerData.num_reviews || 0,
+        takeRate: providerData.take_rate || null,
       });
       
       // Set stripe_acct_id from providerData if not already set from navigation state
@@ -360,6 +361,7 @@ export default function EmbeddedBooking() {
                           firstHealthCondition: null, // Service-only payments don't have health conditions
                           businessName: service.name,
                           businessAddress: service.address || '',
+                          takeRate: service.takeRate,
                           receiptEmail: null,
                           successUrl: successUrl,
                           cancelUrl: cancelUrl,

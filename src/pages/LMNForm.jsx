@@ -74,18 +74,19 @@ export default function LMNForm() {
   const [submitError, setSubmitError] = useState(null);
   const [paymentOption, setPaymentOption] = useState('lmn-only'); // 'lmn-only' | 'lmn-and-service'
   const [providerAddress, setProviderAddress] = useState('');
+  const [providerTakeRate, setProviderTakeRate] = useState(null);
   const [bookingSystemEnabled, setBookingSystemEnabled] = useState(
     initialBookingSystemState !== undefined ? initialBookingSystemState : true
   );
 
-  // Fetch provider address and booking system flag
+  // Fetch provider address, booking system flag, and take_rate
   useEffect(() => {
     const fetchProviderAddress = async () => {
       try {
         const searchPattern = buildBusinessNameQuery(urlBusinessName);
         const { data, error } = await supabase
           .from('providers')
-          .select('address, booking_system')
+          .select('address, booking_system, take_rate')
           .ilike('business_name', searchPattern)
           .limit(1)
           .maybeSingle();
@@ -96,6 +97,9 @@ export default function LMNForm() {
           }
           if (typeof data.booking_system !== 'undefined') {
             setBookingSystemEnabled(data.booking_system !== false);
+          }
+          if (data.take_rate !== null && data.take_rate !== undefined) {
+            setProviderTakeRate(data.take_rate);
           }
         }
       } catch (err) {
@@ -703,6 +707,7 @@ export default function LMNForm() {
                     firstHealthCondition={formData.diagnosedConditions?.[0] || null}
                     businessName={businessName}
                     businessAddress={providerAddress}
+                    takeRate={providerTakeRate}
                     receiptEmail={null}
                     formData={{
                       ...formData,
