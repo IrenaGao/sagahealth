@@ -36,6 +36,68 @@ const __dirname = dirname(__filename);
 
 const SAGA_LOGO_PATH = join(__dirname, '../assets/sagasaillogo.jpg');
 
+// State abbreviation to full name mapping
+const STATE_NAMES: { [key: string]: string } = {
+  'AL': 'Alabama',
+  'AK': 'Alaska',
+  'AZ': 'Arizona',
+  'AR': 'Arkansas',
+  'CA': 'California',
+  'CO': 'Colorado',
+  'CT': 'Connecticut',
+  'DE': 'Delaware',
+  'FL': 'Florida',
+  'GA': 'Georgia',
+  'HI': 'Hawaii',
+  'ID': 'Idaho',
+  'IL': 'Illinois',
+  'IN': 'Indiana',
+  'IA': 'Iowa',
+  'KS': 'Kansas',
+  'KY': 'Kentucky',
+  'LA': 'Louisiana',
+  'ME': 'Maine',
+  'MD': 'Maryland',
+  'MA': 'Massachusetts',
+  'MI': 'Michigan',
+  'MN': 'Minnesota',
+  'MS': 'Mississippi',
+  'MO': 'Missouri',
+  'MT': 'Montana',
+  'NE': 'Nebraska',
+  'NV': 'Nevada',
+  'NH': 'New Hampshire',
+  'NJ': 'New Jersey',
+  'NM': 'New Mexico',
+  'NY': 'New York',
+  'NC': 'North Carolina',
+  'ND': 'North Dakota',
+  'OH': 'Ohio',
+  'OK': 'Oklahoma',
+  'OR': 'Oregon',
+  'PA': 'Pennsylvania',
+  'RI': 'Rhode Island',
+  'SC': 'South Carolina',
+  'SD': 'South Dakota',
+  'TN': 'Tennessee',
+  'TX': 'Texas',
+  'UT': 'Utah',
+  'VT': 'Vermont',
+  'VA': 'Virginia',
+  'WA': 'Washington',
+  'WV': 'West Virginia',
+  'WI': 'Wisconsin',
+  'WY': 'Wyoming',
+  'DC': 'Washington D.C.'
+};
+
+// Function to convert state abbreviation to full name
+function getStateFullName(stateAbbr: string | null | undefined): string {
+  if (!stateAbbr) return '{{text}}';
+  const upperAbbr = stateAbbr.toUpperCase();
+  return STATE_NAMES[upperAbbr] || stateAbbr; // Return abbreviation if not found in mapping
+}
+
 // Function to get HSA form path based on provider
 function getHSAFormPath(hsaProvider: string): string | null {
   const formMap: { [key: string]: string } = {
@@ -507,8 +569,8 @@ export async function generateLMNPDFBuffer(lmnData: string, userInfo: UserInfo):
       doc.moveTo(col2X + licenseStateLabelWidth + lineOffset, row3Y + 10)
          .lineTo(leftMargin + pageWidth, row3Y + 10)
          .stroke();
-      // Add state value from form (or placeholder if not provided)
-      const stateValue = userInfo.state || '{{text}}';
+      // Add state value from form (convert abbreviation to full name, or placeholder if not provided)
+      const stateValue = getStateFullName(userInfo.state);
       doc.fillColor('#FFFFFF').fontSize(15).text(stateValue, col2X + licenseStateLabelWidth + lineOffset + 5, row3Y);
       doc.fillColor('#000000'); // Reset to black
       doc.fontSize(11); // Reset to original font size
