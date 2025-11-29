@@ -281,8 +281,9 @@ export async function handleSignwellWebhook(payload: WebhookPayload): Promise<Ha
           subject: 'Your Letter of Medical Necessity for HSA Coverage is Ready!',
           text:
             `Congrats ${recipientName}!` +
-            "\n\nA licensed practitioner has reviewed the information submitted in your form and has recommended the service you purchased to treat or prevent the specific medical conditions you identified." +
-            "\n\nIn order to use your pre-tax HSA, you'll need to submit a reimbursement claim to your HSA administrator. Be sure to submit both your purchase receipt and your Letter of Medical Necessity, which is attached to this email. Feel free to respond back to this email if you have any questions!" +
+            "\n\nA licensed practitioner has reviewed the information submitted in your form and has issued a Letter of Medical Necessity (LMN) recommending the service you purchased." +
+            "\n\nIn order to use your pre-tax HSA, you'll need to submit a reimbursement claim to your HSA administrator, usually through their website. Be sure to (1) submit your purchase receipt and (2) keep your Letter of Medical Necessity in a safe place, which is attached to this email. Your HSA provider may ask for it as proof of medical necessity."+
+            "\n\nOnce your claim is approved, your HSA administrator will reimburse you directly. Feel free to respond back to this email if you have any questions!" +
             "\n\nSincerely,\nThe Saga Health Team",
           attachments: attachments.length ? attachments : undefined,
         });
