@@ -508,7 +508,7 @@ export async function generateLMNPDFBuffer(lmnData: string, userInfo: UserInfo):
          .lineTo(col2X - 20, row1Y + 10)
          .stroke();
       // Add white placeholder text
-      doc.fillColor('#FFFFFF').fontSize(15).text('{{text}}', col1X + providerNameLabelWidth + lineOffset + 5, row1Y);
+      doc.fillColor('#FFFFFF').fontSize(17).text('{{text}}', col1X + providerNameLabelWidth + lineOffset + 5, row1Y);
       doc.fillColor('#000000'); // Reset to black
       doc.fontSize(11); // Reset to original font size
       
@@ -519,7 +519,7 @@ export async function generateLMNPDFBuffer(lmnData: string, userInfo: UserInfo):
          .lineTo(leftMargin + pageWidth, row1Y + 10)
          .stroke();
       // Add white placeholder text
-      doc.fillColor('#FFFFFF').fontSize(15).text('{{text}}', col2X + providerAddressLabelWidth + lineOffset + 5, row1Y);
+      doc.fillColor('#FFFFFF').fontSize(17).text('{{text}}', col2X + providerAddressLabelWidth + lineOffset + 5, row1Y);
       doc.fillColor('#000000'); // Reset to black
       doc.fontSize(11); // Reset to original font size
       doc.moveDown(1.5);
@@ -534,7 +534,7 @@ export async function generateLMNPDFBuffer(lmnData: string, userInfo: UserInfo):
          .lineTo(col2X - 20, row2Y + 10)
          .stroke();
       // Add white placeholder text
-      doc.fillColor('#FFFFFF').fontSize(15).text('{{text}}', col1X + providerPhoneLabelWidth + lineOffset + 5, row2Y);
+      doc.fillColor('#FFFFFF').fontSize(17).text('{{text}}', col1X + providerPhoneLabelWidth + lineOffset + 5, row2Y);
       doc.fillColor('#000000'); // Reset to black
       doc.fontSize(11); // Reset to original font size
       
@@ -545,7 +545,7 @@ export async function generateLMNPDFBuffer(lmnData: string, userInfo: UserInfo):
          .lineTo(leftMargin + pageWidth, row2Y + 10)
          .stroke();
       // Add white placeholder text
-      doc.fillColor('#FFFFFF').fontSize(15).text('{{text}}', col2X + providerEmailLabelWidth + lineOffset + 5, row2Y);
+      doc.fillColor('#FFFFFF').fontSize(17).text('{{text}}', col2X + providerEmailLabelWidth + lineOffset + 5, row2Y);
       doc.fillColor('#000000'); // Reset to black
       doc.fontSize(11); // Reset to original font size
       doc.moveDown(1.5);
@@ -559,7 +559,7 @@ export async function generateLMNPDFBuffer(lmnData: string, userInfo: UserInfo):
          .lineTo(col2X - 20, row3Y + 10)
          .stroke();
       // Add white placeholder text
-      doc.fillColor('#FFFFFF').fontSize(15).text('{{text}}', col1X + providerLicenseLabelWidth + lineOffset + 5, row3Y);
+      doc.fillColor('#FFFFFF').fontSize(17).text('{{text}}', col1X + providerLicenseLabelWidth + lineOffset + 5, row3Y);
       doc.fillColor('#000000'); // Reset to black
       doc.fontSize(11); // Reset to original font size
       
@@ -587,7 +587,7 @@ export async function generateLMNPDFBuffer(lmnData: string, userInfo: UserInfo):
          .lineTo(leftMargin + 200, signatureLineY)
          .stroke();
       // Add white placeholder text for signature
-      doc.fillColor('#FFFFFF').fontSize(20).text('{{signature}}', leftMargin + 5, signatureLineY - 8);
+      doc.fillColor('#FFFFFF').fontSize(25).text('{{signature}}', leftMargin + 5, signatureLineY - 8);
       doc.fillColor('#000000'); // Reset to black
       doc.fontSize(11); // Reset to original font size
       doc.moveDown(0.3);

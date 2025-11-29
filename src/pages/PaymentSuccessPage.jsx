@@ -145,12 +145,10 @@ export default function PaymentSuccessPage() {
             </p>
           ) : (
             <p className="text-lg text-gray-600 mb-6">
-              Your Letter of Medical Necessity has been generated and will be emailed to you within 24 hours
+              Your information will be securely reviewed by a licensed medical professional. Once everything is approved, you'll receive your Letter of Medical Necessity within 24 hours.
                   {finalPaymentOption === 'lmn-and-service' && (
-                    <span className="text-gray-600">, and your appointment payment has also been successfully completed</span>
+                    <span className="text-gray-600"> We’ve also processed your appointment payment, and you’ll receive a confirmation email shortly.</span>
               )}
-              <span>. You will receive a confirmation email shortly</span>
-                  {finalPaymentOption !== 'lmn-and-service' && '.'}
             </p>
           )}
 
