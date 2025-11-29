@@ -650,7 +650,8 @@ app.post('/api/generate-lmn', async (req, res) => {
       desiredProduct: desiredProduct || 'Wellness service/product',
       businessName: businessName || '',
       nurseFirstName: selectedNurse?.first_name || null,
-      nurseLastName: selectedNurse?.last_name || null
+      nurseLastName: selectedNurse?.last_name || null,
+      state: state || null
     });
     console.log('PDF generated successfully (in memory only, not saved to disk)');
 

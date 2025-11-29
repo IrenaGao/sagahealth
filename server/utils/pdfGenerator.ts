@@ -27,6 +27,7 @@ interface UserInfo {
   businessName?: string;
   nurseFirstName?: string | null;
   nurseLastName?: string | null;
+  state?: string | null;
 }
 
 // Get current file directory
@@ -506,8 +507,9 @@ export async function generateLMNPDFBuffer(lmnData: string, userInfo: UserInfo):
       doc.moveTo(col2X + licenseStateLabelWidth + lineOffset, row3Y + 10)
          .lineTo(leftMargin + pageWidth, row3Y + 10)
          .stroke();
-      // Add white placeholder text
-      doc.fillColor('#FFFFFF').fontSize(15).text('{{text}}', col2X + licenseStateLabelWidth + lineOffset + 5, row3Y);
+      // Add state value from form (or placeholder if not provided)
+      const stateValue = userInfo.state || '{{text}}';
+      doc.fillColor('#FFFFFF').fontSize(15).text(stateValue, col2X + licenseStateLabelWidth + lineOffset + 5, row3Y);
       doc.fillColor('#000000'); // Reset to black
       doc.fontSize(11); // Reset to original font size
       doc.moveDown(2);
