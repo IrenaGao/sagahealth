@@ -571,7 +571,7 @@ export async function generateLMNPDFBuffer(lmnData: string, userInfo: UserInfo):
          .stroke();
       // Add state value from form (convert abbreviation to full name, or placeholder if not provided)
       const stateValue = getStateFullName(userInfo.state);
-      doc.fillColor('#000000').fontSize(15).text(stateValue, col2X + licenseStateLabelWidth + lineOffset + 5, row3Y);
+      doc.fillColor('#000000').fontSize(15).text(stateValue, col2X + licenseStateLabelWidth + lineOffset + 5, row3Y - 2);
       doc.fontSize(11); // Reset to original font size
       doc.moveDown(2);
 
