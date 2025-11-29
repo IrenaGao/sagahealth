@@ -63,6 +63,7 @@ export default function ServiceDetails() {
           image: data.image || 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=1200&h=600&fit=crop',
           stripeAcctId: data.stripe_acct_id || null,
           bookingSystemEnabled: data.booking_system !== false,
+          oneBookingLink: data.one_booking_link === true,
         };
         setService(mappedData);
         setError(null);
@@ -214,6 +215,14 @@ export default function ServiceDetails() {
                     state: {
                       stripeAcctId: service.stripeAcctId,
                       bookingSystemEnabled: false,
+                    },
+                  });
+                } else if (service.oneBookingLink === true) {
+                  // If one_booking_link is true, skip booking page and go directly to schedule
+                  navigate(`/book/${businessSlug}/schedule`, {
+                    state: { 
+                      stripeAcctId: service.stripeAcctId,
+                      bookingSystemEnabled: true,
                     },
                   });
                 } else {

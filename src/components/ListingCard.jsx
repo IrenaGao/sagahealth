@@ -24,10 +24,17 @@ export default function ListingCard({ listing, isHighlighted, onClick }) {
   return (
     <div
       onClick={handleCardClick}
-      className={`bg-white rounded-xl overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 flex flex-col sm:flex-row sm:h-48 ${
+      className={`bg-white rounded-xl overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 flex flex-col sm:flex-row sm:h-48 relative ${
         isHighlighted ? 'ring-2 ring-emerald-500 shadow-lg' : 'shadow-md'
       }`}
     >
+      {/* Bookable tag - Bottom right corner */}
+      {listing.bookingSystemEnabled !== false && (
+        <div className="absolute bottom-3 right-3 z-10 px-2 py-1 bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 text-xs font-semibold rounded-md shadow-md">
+          Bookable
+        </div>
+      )}
+      
       {/* Image - Left side on desktop, top on mobile */}
       {listing.image && (
         <div className="relative w-full sm:w-1/4 h-48 flex-shrink-0">

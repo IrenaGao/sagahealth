@@ -8,6 +8,7 @@ export default function WellnessMarketplace() {
   const [providers, setProviders] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
+  const [selectedBookableFilter, setSelectedBookableFilter] = useState('All')
   const [highlightedId, setHighlightedId] = useState(undefined)
   const [showMap, setShowMap] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -122,16 +123,20 @@ export default function WellnessMarketplace() {
       const matchesCategory = selectedCategory === 'All' || 
         provider.categories?.some(cat => cat.toLowerCase() === selectedCategory.toLowerCase())
 
-      console.log('Provider:', provider.name, 'matchesSearch:', matchesSearch, 'matchesCategory:', matchesCategory, 'categories:', provider.categories)
+      const matchesBookableFilter = selectedBookableFilter === 'All' ||
+        (selectedBookableFilter === 'Bookable' && provider.bookingSystemEnabled !== false) ||
+        (selectedBookableFilter === 'LMN Only' && provider.bookingSystemEnabled === false)
+
+      console.log('Provider:', provider.name, 'matchesSearch:', matchesSearch, 'matchesCategory:', matchesCategory, 'matchesBookableFilter:', matchesBookableFilter, 'categories:', provider.categories)
       
-      return matchesSearch && matchesCategory
+      return matchesSearch && matchesCategory && matchesBookableFilter
     })
-  }, [providers, searchQuery, selectedCategory])
+  }, [providers, searchQuery, selectedCategory, selectedBookableFilter])
 
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery, selectedCategory, providers.length])
+  }, [searchQuery, selectedCategory, selectedBookableFilter, providers.length])
 
   const totalPages = Math.max(1, Math.ceil(filteredListings.length / ITEMS_PER_PAGE))
   const paginatedListings = filteredListings.slice(
@@ -163,6 +168,8 @@ export default function WellnessMarketplace() {
         onSearchChange={setSearchQuery}
         selectedCategory={selectedCategory}
         onCategoryChange={setSelectedCategory}
+        selectedBookableFilter={selectedBookableFilter}
+        onBookableFilterChange={setSelectedBookableFilter}
       />
 
       {/* Main Content */}

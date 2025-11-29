@@ -42,6 +42,40 @@ export default function PaymentSuccessPage() {
           setSessionData(data);
           setIsLoading(false);
           
+          // Track purchase in Google Analytics
+          if (typeof window !== 'undefined' && window.gtag && data.payment_status === 'paid') {
+            const amount = data.amount ? (data.amount / 100) : 0;
+            // Extract business name from metadata or formData
+            const businessName = (data.metadata && data.metadata.businessName) 
+              || (data.formData && data.formData.businessName) 
+              || 'Unknown';
+            // Extract service type (actual service name like "Massage Therapy")
+            const serviceType = (data.metadata && data.metadata.serviceName)
+              || (data.formData && data.formData.desiredProduct)
+              || 'Service';
+            
+            window.gtag('event', 'purchase', {
+              transaction_id: data.paymentIntentId || sessionId,
+              value: amount,
+              currency: 'USD',
+              items: [{
+                item_id: data.paymentIntentId || sessionId,
+                item_name: serviceType,
+                item_category: businessName,
+                price: amount,
+                quantity: 1
+              }],
+              business_name: businessName,
+              service_type: serviceType
+            });
+            
+            console.log('Google Analytics purchase event tracked:', {
+              amount,
+              businessName,
+              serviceType
+            });
+          }
+          
           // Receipt is now emailed automatically - no need to download
           if (data.serviceReceiptPDF) {
             console.log('Service receipt has been generated and will be emailed to the customer');

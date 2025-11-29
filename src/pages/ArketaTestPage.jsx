@@ -40,14 +40,22 @@ export default function ArketaTestPage() {
         </div>
 
         {/* Embedded Arketa Iframe */}
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+        {/* <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
           <iframe
             src="https://app.arketa.co/iframe/joylift/schedule"
             className="w-full h-[800px] border-0"
             title="Arketa Scheduling"
             allow="payment"
           />
-        </div>
+        </div> */}
+        <iframe 
+id="sutraWidgetIframe" 
+src="https://app.arketa.co/iframe/joylift/shop" 
+width="100%" 
+frameBorder="0" 
+allow="payment" 
+allowfullscreen></iframe> 
+<script src="https://app.arketa.co/scripts/embed.js"> </script>
       </div>
     </div>
   );

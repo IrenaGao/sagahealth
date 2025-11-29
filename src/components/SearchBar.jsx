@@ -1,10 +1,12 @@
-const categories = ['All', 'Gym', 'Massage', 'Pilates', 'Yoga', 'Spa'];
+const categories = ['All', 'Gym', 'Massage', 'Yoga'];
 
 export default function SearchBar({
   searchQuery,
   onSearchChange,
   selectedCategory,
   onCategoryChange,
+  selectedBookableFilter,
+  onBookableFilterChange,
 }) {
   return (
     <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
@@ -56,6 +58,32 @@ export default function SearchBar({
               {category}
             </button>
           ))}
+          
+          {/* Visual Separator */}
+          <div className="h-8 w-px bg-gray-300 mx-3"></div>
+          
+          {/* Bookable Filter Buttons */}
+          <button
+            onClick={() => onBookableFilterChange(selectedBookableFilter === 'Bookable' ? 'All' : 'Bookable')}
+            className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+              selectedBookableFilter === 'Bookable'
+                ? 'bg-yellow-400 text-yellow-900 shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Bookable
+          </button>
+          
+          <button
+            onClick={() => onBookableFilterChange(selectedBookableFilter === 'LMN Only' ? 'All' : 'LMN Only')}
+            className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+              selectedBookableFilter === 'LMN Only'
+                ? 'bg-gray-400 text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            LMN Only
+          </button>
         </div>
       </div>
     </div>

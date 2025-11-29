@@ -42,6 +42,7 @@ export default function EmbeddedBooking() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [stripeAcctId, setStripeAcctId] = useState(stripeAcctIdFromState || null);
+  const [oneBookingLink, setOneBookingLink] = useState(false);
   const iframeRef = useRef(null);
 
   // Fetch service details
@@ -85,6 +86,9 @@ export default function EmbeddedBooking() {
         reviewCount: providerData.num_reviews || 0,
         takeRate: providerData.take_rate || null,
       });
+      
+      // Set one_booking_link flag
+      setOneBookingLink(providerData.one_booking_link === true);
       
       // Set stripe_acct_id from providerData if not already set from navigation state
       if (!stripeAcctId && providerData.stripe_acct_id) {
@@ -130,6 +134,10 @@ export default function EmbeddedBooking() {
         if (bookingOptionId) {
           const selected = options.find(opt => opt.id === bookingOptionId);
           setBookingOption(selected);
+        } else if (options.length === 1) {
+          // If there's only one booking option and no bookingOption param, auto-select it
+          // This handles the case when one_booking_link is true
+          setBookingOption(options[0]);
         }
       }
     } catch (err) {
@@ -301,20 +309,20 @@ export default function EmbeddedBooking() {
         </div>
 
         {/* Payments Section */}
-        <div className="mt-6 bg-white rounded-2xl shadow-lg p-6">
+        <div className={`mt-6 bg-white rounded-2xl shadow-lg p-6 ${oneBookingLink ? 'max-w-3xl mx-auto' : ''}`}>
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Payments</h2>
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className={`grid grid-cols-1 ${oneBookingLink ? '' : 'lg:grid-cols-2'} gap-6`}>
             {/* First time using HSA funds - Green subsection */}
             <div className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl p-6">
               <div className="flex flex-col h-full">
                 <h3 className="text-lg font-bold text-green-900 mb-3">
-                  First time booking this service? Get your LMN now!
+                  {oneBookingLink ? 'Get your LMN now!' : 'First time booking this service? Get your LMN now!'}
                 </h3>
                 <p className="text-sm text-green-800 mb-4 flex-1">
                   Save ~30% on your appointment by unlocking pre-tax HSA/FSA funds. Just take a
                   quick health survey, pay a $20 fee, and get your Letter of Medical Necessity (LMN)
-                  in hours. You can also pay for your appointment here!
+                  in hours.{!oneBookingLink && ' You can also pay for your appointment here!'}
                 </p>
                 <button
                   onClick={onBookingComplete}
@@ -329,6 +337,7 @@ export default function EmbeddedBooking() {
             </div>
 
             {/* Already have an LMN - Blue subsection */}
+            {!oneBookingLink && (
             <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-6">
               <div className="flex flex-col h-full">
                 <h3 className="text-lg font-bold text-blue-900 mb-3">
@@ -398,6 +407,7 @@ export default function EmbeddedBooking() {
                 </button>
               </div>
             </div>
+            )}
           </div>
         </div>
       </div>

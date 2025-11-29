@@ -400,10 +400,12 @@ app.get('/api/checkout-session', async (req, res) => {
       paymentIntentId: paymentIntentId,
       amount: session.amount_total,
       currency: session.currency,
-      paymentStatus: session.payment_status,
+      payment_status: session.payment_status, // Use snake_case for consistency
+      paymentStatus: session.payment_status, // Also include camelCase for backward compatibility
       customerEmail: session.customer_email,
       paymentOption: paymentOption,
       formData: formData,
+      metadata: metadata, // Include metadata for Google Analytics tracking
       serviceReceiptPDF: serviceReceiptPDF, // Include receipt PDF if generated
     });
   } catch (error: any) {

@@ -79,14 +79,16 @@ export default function LMNForm() {
     initialBookingSystemState !== undefined ? initialBookingSystemState : true
   );
 
-  // Fetch provider address, booking system flag, and take_rate
+  const [oneBookingLink, setOneBookingLink] = useState(false);
+
+  // Fetch provider address, booking system flag, take_rate, and one_booking_link
   useEffect(() => {
     const fetchProviderAddress = async () => {
       try {
         const searchPattern = buildBusinessNameQuery(urlBusinessName);
         const { data, error } = await supabase
           .from('providers')
-          .select('address, booking_system, take_rate')
+          .select('address, booking_system, take_rate, one_booking_link')
           .ilike('business_name', searchPattern)
           .limit(1)
           .maybeSingle();
@@ -101,6 +103,11 @@ export default function LMNForm() {
           if (data.take_rate !== null && data.take_rate !== undefined) {
             setProviderTakeRate(data.take_rate);
           }
+          if (data.one_booking_link === true) {
+            setOneBookingLink(true);
+            // Force LMN-only payment when one_booking_link is true
+            setPaymentOption('lmn-only');
+          }
         }
       } catch (err) {
         console.error('Error fetching provider address:', err);
@@ -110,14 +117,14 @@ export default function LMNForm() {
     fetchProviderAddress();
   }, [urlBusinessName]);
 
-  // Force LMN-only payment when provider does not have a booking system
+  // Force LMN-only payment when provider does not have a booking system or when one_booking_link is true
   useEffect(() => {
-    if (bookingSystemEnabled === false && paymentOption !== 'lmn-only') {
+    if ((bookingSystemEnabled === false || oneBookingLink === true) && paymentOption !== 'lmn-only') {
       setPaymentOption('lmn-only');
     }
-  }, [bookingSystemEnabled, paymentOption]);
+  }, [bookingSystemEnabled, oneBookingLink, paymentOption]);
 
-  const checkoutAmount = bookingSystemEnabled === false
+  const checkoutAmount = (bookingSystemEnabled === false || oneBookingLink === true)
     ? 20
     : paymentOption === 'lmn-and-service'
       ? (20 + servicePrice)
@@ -658,7 +665,7 @@ export default function LMNForm() {
                 </div>
 
                 {/* Payment Options */}
-                {bookingSystemEnabled !== false && (
+                {bookingSystemEnabled !== false && oneBookingLink !== true && (
                   <div className="bg-gray-50 p-6 rounded-lg">
                     <h2 className="text-xl font-semibold text-gray-900 mb-4">Payment Options</h2>
                     <div className="space-y-4">
