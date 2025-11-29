@@ -365,7 +365,7 @@ app.get('/api/checkout-session', async (req, res) => {
                 from: 'Saga Health <support@mysagahealth.com>',
                 to: recipientEmail,
                 subject: 'Your Appointment Receipt from Saga Health',
-                text: `Dear ${customerName},\n\nThank you for your purchase! Please find your appointment receipt attached to this email.\n\nIf you have any questions, please don't hesitate to reach out.\n\nSincerely,\nThe Saga Health Team`,
+                text: `Dear ${customerName},\n\nThank you for your purchase! Please find your appointment receipt attached to this email, which you can then use to submit to your HSA administrator for reimbursement.\n\nIf you have any questions, please don't hesitate to reach out.\n\nSincerely,\nThe Saga Health Team`,
                 attachments: [
                   {
                     filename: `Service_Receipt_${customerName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`,
@@ -662,9 +662,10 @@ app.post('/api/generate-lmn', async (req, res) => {
     // Use patient's name from LMN form for recipientName
     const recipientName = `${firstName} ${lastName}`;
     
+    const lmnFileName = `LMN_${firstName}_${lastName}_${new Date().toISOString().split('T')[0]}.pdf`;
     const signwellResult = await createSignatureRequest({
       pdfBase64,
-      fileName: `LMN_${firstName}_${lastName}_${new Date().toISOString().split('T')[0]}.pdf`,
+      fileName: lmnFileName,
       recipientEmail: "irenagao@mysagahealth.com",
       recipientName: recipientName,
       selectedNurse: selectedNurse
@@ -673,7 +674,7 @@ app.post('/api/generate-lmn', async (req, res) => {
     console.log('SignWell signature request created:', signwellResult);
 
     // Update Stripe payment intent metadata to mark LMN as generated (idempotency)
-    // Also store customer email so we can email them after SignWell signing is complete
+    // Also store customer email and filename so we can email them after SignWell signing is complete
     if (paymentIntentId) {
       try {
         await stripe.paymentIntents.update(paymentIntentId, {
@@ -681,7 +682,8 @@ app.post('/api/generate-lmn', async (req, res) => {
             lmnGenerated: 'true',
             lmnGeneratedAt: new Date().toISOString(),
             signwellDocumentGroupId: signwellResult.documentGroupId || '',
-            customerEmail: email || '' // Store customer email for webhook handler
+            customerEmail: email || '', // Store customer email for webhook handler
+            lmnFileName: lmnFileName // Store original filename for webhook handler
           }
         });
         console.log(`Updated payment intent ${paymentIntentId} metadata to mark LMN as generated`);

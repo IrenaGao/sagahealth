@@ -4,6 +4,7 @@ import * as dotenv from 'dotenv';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import stripe from '../stripe.js';
+import { PDFDocument } from 'pdf-lib';
 
 // Get current file directory and load environment variables
 const __filename = fileURLToPath(import.meta.url);
@@ -187,10 +188,11 @@ export async function handleSignwellWebhook(payload: WebhookPayload): Promise<Ha
     // Get recipient name from SignWell payload
     const recipientName = payload?.data?.object?.recipients?.[0]?.name || 'there';
     
-    // Look up customer email from Stripe payment intent metadata
+    // Look up customer email and filename from Stripe payment intent metadata
     // The signwellDocumentGroupId is stored in payment intent metadata when the document is created
     // This email will be used for the Resend API notification (not the SignWell recipient)
     let recipientEmail: string | null = null;
+    let lmnFileName: string | null = null;
     
     if (docId) {
       try {
@@ -203,6 +205,12 @@ export async function handleSignwellWebhook(payload: WebhookPayload): Promise<Ha
         
         if (searchResults.data.length > 0) {
           const matchingPaymentIntent = searchResults.data[0];
+          // Get filename from metadata
+          if (matchingPaymentIntent.metadata?.lmnFileName) {
+            lmnFileName = matchingPaymentIntent.metadata.lmnFileName;
+            console.log(`✓ Found LMN filename from Stripe payment intent metadata: ${lmnFileName}`);
+          }
+          
           if (matchingPaymentIntent.metadata?.customerEmail) {
             recipientEmail = matchingPaymentIntent.metadata.customerEmail;
             console.log(`✓ Found customer email from Stripe payment intent metadata: ${recipientEmail}`);
@@ -257,9 +265,45 @@ export async function handleSignwellWebhook(payload: WebhookPayload): Promise<Ha
         );
 
         const pdfBuffer = Buffer.from(pdfResponse.data);
+        
+        // Remove audit report pages from the PDF
+        // SignWell appends audit report pages at the end, typically 1-3 pages
+        let cleanedPdfBuffer = pdfBuffer;
+        try {
+          const pdfDoc = await PDFDocument.load(pdfBuffer);
+          const pageCount = pdfDoc.getPageCount();
+          
+          // Try to identify audit report pages (usually last 1-3 pages)
+          // We'll remove pages that might contain audit report content
+          // A conservative approach: check if there are more than 2 pages and remove the last 2
+          // This is a heuristic - you may need to adjust based on your document structure
+          if (pageCount > 2) {
+            // Remove the last 2 pages (typically where audit report is)
+            // You can adjust this number if audit reports are longer
+            const pagesToRemove = 1;
+            const pagesToKeep = pageCount - pagesToRemove;
+            
+            // Create a new PDF with only the pages we want to keep
+            const newPdf = await PDFDocument.create();
+            const pages = await newPdf.copyPages(pdfDoc, Array.from({ length: pagesToKeep }, (_, i) => i));
+            pages.forEach((page) => newPdf.addPage(page));
+            
+            const cleanedPdfBytes = await newPdf.save();
+            cleanedPdfBuffer = Buffer.from(cleanedPdfBytes);
+            console.log(`Removed ${pagesToRemove} audit report page(s) from PDF (original: ${pageCount} pages, cleaned: ${pagesToKeep} pages)`);
+          } else {
+            console.log(`PDF has ${pageCount} page(s), assuming no audit report to remove`);
+          }
+        } catch (pdfProcessError) {
+          console.warn('Failed to remove audit report from PDF, using original:', pdfProcessError);
+          // Continue with original PDF if processing fails
+        }
+        
+        // Use the original filename from metadata if available, otherwise fallback to docId
+        const attachmentFilename = lmnFileName || `LMN_${docId}.pdf`;
         attachments.push({
-          filename: `LMN_${docId}.pdf`,
-          content: pdfBuffer.toString('base64'),
+          filename: attachmentFilename,
+          content: cleanedPdfBuffer.toString('base64'),
           contentType: 'application/pdf',
         });
 
