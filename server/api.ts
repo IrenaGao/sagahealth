@@ -668,7 +668,7 @@ app.post('/api/generate-lmn', async (req, res) => {
     const signwellResult = await createSignatureRequest({
       pdfBase64,
       fileName: lmnFileName,
-      recipientEmail: "irenagao@mysagahealth.com",
+      recipientEmail: recipientEmail,
       recipientName: recipientName,
       selectedNurse: selectedNurse
     });
