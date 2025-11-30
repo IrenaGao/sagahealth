@@ -33,6 +33,7 @@ app.use(cors({
   origin: [
     'http://localhost:5173', // Local development
     'https://sagahealth.vercel.app', // Production frontend
+    'https://app.mysagahealth.com', // Production frontend
     /\.vercel\.app$/, // All Vercel preview deployments
   ],
   credentials: true
