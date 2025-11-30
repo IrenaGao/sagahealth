@@ -39,7 +39,7 @@ export default function SearchBar({
             rel="noopener noreferrer"
             className="flex-shrink-0 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg transition-colors whitespace-nowrap"
           >
-            Visit Site
+            Learn More
           </a>
         </div>
         

@@ -1,10 +1,12 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import ListingCard from '../components/ListingCard'
 import WellnessMap from '../components/WellnessMap'
 import SearchBar from '../components/SearchBar'
 import { supabase } from '../supabaseClient'
 
 export default function WellnessMarketplace() {
+  const navigate = useNavigate()
   const [providers, setProviders] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
@@ -172,8 +174,20 @@ export default function WellnessMarketplace() {
         onBookableFilterChange={setSelectedBookableFilter}
       />
 
+      {/* LMN Button Banner */}
+      <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 border-b border-emerald-600">
+        <div className="max-w-[1920px] mx-auto px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 py-3">
+          <button
+            onClick={() => navigate('/book/any-provider/lmn-form', { state: { bookingSystemEnabled: false } })}
+            className="w-full text-center text-white font-medium hover:underline transition-colors"
+          >
+            <span className="mr-1">🔍</span>  Don't see your provider listed? Click here to get an LMN for any provider of your choice! ✨
+          </button>
+        </div>
+      </div>
+
       {/* Main Content */}
-      <div className="max-w-[1920px] mx-auto px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 h-[calc(100vh-180px)]">
+      <div className="max-w-[1920px] mx-auto px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 h-[calc(100vh-232px)]">
         {/* Mobile Map Toggle */}
         <div className="lg:hidden pt-4">
           <button

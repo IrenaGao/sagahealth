@@ -199,9 +199,12 @@ export default function ServiceDetails() {
             <div className="mb-6 pb-6 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900 mb-2">About</h2>
               <p className="text-gray-600 leading-relaxed">{service.description}</p>
-              <p className="mt-4 text-gray-700 font-medium">
-                Save ~30% on your appointment by unlocking pre-tax HSA/FSA funds. Just take a quick health survey,
-                pay a $20 fee, and get your Letter of Medical Necessity (LMN) in hours.
+              <p className="mt-12 text-gray-700">
+                <div className="font-semibold">Save ~30% using your HSA/FSA in 3 easy steps:</div>
+                <div className="mt-3">1. Pay for your appointment with your credit card as you normally would.</div>
+                <div className="mt-2">2: Fill out a quick health survey and pay a $20 LMN evaluation fee. We'll forward your responses to a licensed medical professional.</div>
+                <div className="mt-2 mb-3">3. Within 24 hours, you'll receive your Letter of Medical Necessity (LMN). Upload your receipt to your HSA administrator to get reimbursed.</div>
+                <div className="font-medium">Keep your LMN in a safe place! It may be required for future verification.</div>
               </p>
             </div>
           )}

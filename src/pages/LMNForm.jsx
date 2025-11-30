@@ -80,9 +80,18 @@ export default function LMNForm() {
   );
 
   const [oneBookingLink, setOneBookingLink] = useState(false);
+  const [customBusinessName, setCustomBusinessName] = useState('');
+  
+  // Check if this is a generic "any provider" request
+  const isAnyProvider = businessName === 'Any Provider' || businessName === '' || urlBusinessName === 'any-provider';
 
   // Fetch provider address, booking system flag, take_rate, and one_booking_link
   useEffect(() => {
+    // Skip fetching if this is a generic "any provider" request
+    if (isAnyProvider) {
+      return;
+    }
+    
     const fetchProviderAddress = async () => {
       try {
         const searchPattern = buildBusinessNameQuery(urlBusinessName);
@@ -115,7 +124,7 @@ export default function LMNForm() {
     };
     
     fetchProviderAddress();
-  }, [urlBusinessName]);
+  }, [urlBusinessName, isAnyProvider]);
 
   // Force LMN-only payment when provider does not have a booking system or when one_booking_link is true
   useEffect(() => {
@@ -140,11 +149,17 @@ export default function LMNForm() {
       const savedPaymentOption = localStorage.getItem('lmnPaymentOption');
       const savedServiceName = localStorage.getItem('lmnServiceName');
       const savedServicePrice = localStorage.getItem('lmnServicePrice');
+      const savedCustomBusinessName = localStorage.getItem('lmnCustomBusinessName');
       
       if (savedFormData) {
         try {
           const parsedData = JSON.parse(savedFormData);
           setFormData(parsedData);
+          
+          // If this is "any provider" and businessName was saved in formData, extract it
+          if (isAnyProvider && parsedData.businessName && parsedData.businessName !== 'Any Provider') {
+            setCustomBusinessName(parsedData.businessName);
+          }
         } catch (e) {
           console.error('Failed to parse saved form data:', e);
         }
@@ -152,6 +167,11 @@ export default function LMNForm() {
       
       if (savedPaymentOption) {
         setPaymentOption(savedPaymentOption);
+      }
+      
+      // Restore custom business name if it was saved separately (fallback)
+      if (savedCustomBusinessName && isAnyProvider && !customBusinessName) {
+        setCustomBusinessName(savedCustomBusinessName);
       }
       
       // Restore service name, price, and duration from localStorage
@@ -197,6 +217,7 @@ export default function LMNForm() {
       localStorage.removeItem('lmnServicePrice');
       localStorage.removeItem('lmnServiceName');
       localStorage.removeItem('lmnDuration');
+      localStorage.removeItem('lmnCustomBusinessName');
     }
   }, [searchParams, totalSteps, setSearchParams]);
   
@@ -333,6 +354,11 @@ export default function LMNForm() {
         throw new Error('Please fill in all required fields');
       }
       
+      // If this is "any provider", validate business name
+      if (isAnyProvider && !customBusinessName.trim()) {
+        throw new Error('Please enter a provider/business name');
+      }
+      
       if (!formData.attestation) {
         throw new Error('Please agree to the attestation');
       }
@@ -351,7 +377,12 @@ export default function LMNForm() {
   const isStepValid = () => {
     switch (currentStep) {
       case 1:
-        return formData.firstName && formData.lastName && formData.age && formData.sex && formData.hsaProvider && formData.state;
+        const baseValid = formData.firstName && formData.lastName && formData.age && formData.sex && formData.hsaProvider && formData.state;
+        // If this is "any provider", also require custom business name
+        if (isAnyProvider) {
+          return baseValid && customBusinessName.trim() !== '';
+        }
+        return baseValid;
       case 2:
         // Require at least one diagnosed condition for LMN generation
         return formData.diagnosedConditions.length > 0;
@@ -539,6 +570,23 @@ export default function LMNForm() {
                     ))}
                   </select>
                 </div>
+
+                {/* Business Name field - only show when coming from "any provider" route */}
+                {isAnyProvider && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Provider/Business Name *
+                    </label>
+                    <input
+                      type="text"
+                      required={isAnyProvider}
+                      value={customBusinessName}
+                      onChange={(e) => setCustomBusinessName(e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      placeholder="Enter the name of your wellness provider or business"
+                    />
+                  </div>
+                )}
               </div>
             )}
 
@@ -712,14 +760,14 @@ export default function LMNForm() {
                     serviceName={serviceType}
                     duration={duration}
                     firstHealthCondition={formData.diagnosedConditions?.[0] || null}
-                    businessName={businessName}
+                    businessName={isAnyProvider && customBusinessName ? customBusinessName : businessName}
                     businessAddress={providerAddress}
                     takeRate={providerTakeRate}
                     receiptEmail={null}
                     formData={{
                       ...formData,
                       desiredProduct: serviceType,
-                      businessName: businessName
+                      businessName: isAnyProvider && customBusinessName ? customBusinessName : businessName
                     }}
                   />
                 </div>
