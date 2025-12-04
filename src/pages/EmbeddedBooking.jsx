@@ -309,24 +309,27 @@ export default function EmbeddedBooking() {
         </div>
 
         {/* Payments Section */}
-        <div className={`mt-6 bg-white rounded-2xl shadow-lg p-6 ${oneBookingLink ? 'max-w-3xl mx-auto' : ''}`}>
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Payments</h2>
-          
-          <div className={`grid grid-cols-1 ${oneBookingLink ? '' : 'lg:grid-cols-2'} gap-6`}>
+        <div className={`mt-6 ${oneBookingLink ? '' : 'bg-white rounded-2xl shadow-lg p-6'}`}>
+          <div>
+            {!oneBookingLink && <h2 className="text-2xl font-bold text-gray-900 mb-6">Payments</h2>}
+            
+            <div className={`grid grid-cols-1 ${oneBookingLink ? '' : 'lg:grid-cols-2'} gap-6`}>
             {/* First time using HSA funds - Green subsection */}
             <div className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl p-6">
-              <div className="flex flex-col h-full">
-                <h3 className="text-lg font-bold text-green-900 mb-3">
-                  {oneBookingLink ? 'Get your LMN now!' : 'First time booking this service? Get your LMN now!'}
-                </h3>
-                <p className="text-sm text-green-800 mb-4 flex-1">
-                  Save ~30% on your appointment by unlocking pre-tax HSA/FSA funds. Just take a
-                  quick health survey, pay a $20 fee, and get your Letter of Medical Necessity (LMN)
-                  in hours.{!oneBookingLink && ' You can also pay for your appointment here!'}
-                </p>
+              <div className={`flex ${oneBookingLink ? 'flex-row items-center gap-32' : 'flex-col'} h-full`}>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-green-900 mb-3">
+                    {oneBookingLink ? 'Get your LMN now!' : 'First time booking this service? Get your LMN now!'}
+                  </h3>
+                  <p className="text-sm text-green-800 mb-4">
+                    Save ~30% on your appointment by unlocking pre-tax HSA/FSA funds. Just take a
+                    quick health survey, pay a $20 fee, and get your Letter of Medical Necessity (LMN)
+                    in hours.{!oneBookingLink && ' You can also pay for your appointment here!'}
+                  </p>
+                </div>
                 <button
                   onClick={onBookingComplete}
-                  className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                  className={`px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 ${oneBookingLink ? 'flex-shrink-0 min-w-[350px]' : ''}`}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -408,6 +411,7 @@ export default function EmbeddedBooking() {
               </div>
             </div>
             )}
+          </div>
           </div>
         </div>
       </div>
