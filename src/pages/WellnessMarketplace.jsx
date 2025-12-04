@@ -188,23 +188,9 @@ export default function WellnessMarketplace() {
 
       {/* Main Content */}
       <div className="max-w-[1920px] mx-auto px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 h-[calc(100vh-232px)]">
-        {/* Mobile Map Toggle */}
-        <div className="lg:hidden pt-4">
-          <button
-            onClick={() => setShowMap(!showMap)}
-            className="w-full py-3 px-4 bg-emerald-500 text-white rounded-xl font-medium shadow-md hover:bg-emerald-600 transition-colors"
-          >
-            {showMap ? '📋 Show List' : '🗺️ Show Map'}
-          </button>
-        </div>
-
         <div className="flex flex-col lg:flex-row h-full -mx-2 sm:-mx-3 md:-mx-4 lg:-mx-6 xl:-mx-8">
           {/* Listings Column */}
-          <div
-            className={`w-full lg:w-3/5 h-full overflow-y-auto px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 py-6 ${
-              showMap ? 'hidden lg:block' : 'block'
-            }`}
-          >
+          <div className="w-full lg:w-3/5 h-full overflow-y-auto px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 py-6">
             {loading ? (
               <div className="text-center py-20">
                 <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mb-4"></div>
@@ -257,7 +243,7 @@ export default function WellnessMarketplace() {
                   </div>
                 ))}
                 {totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-4 pt-4">
+                  <div className="flex items-center justify-center gap-4 pt-4 pb-8 sm:pb-4">
                     <button
                       onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                       disabled={currentPage === 1}
@@ -286,12 +272,8 @@ export default function WellnessMarketplace() {
             )}
           </div>
 
-          {/* Map Column */}
-          <div
-            className={`w-full lg:w-2/5 h-[60vh] lg:h-full px-4 sm:px-6 md:px-10 lg:px-0 ${
-              showMap ? 'block' : 'hidden lg:block'
-            }`}
-          >
+          {/* Map Column - Desktop only */}
+          <div className="hidden lg:block lg:w-2/5 h-full lg:px-0">
             <div className="h-full w-full">
               <WellnessMap
                 listings={filteredListings}
