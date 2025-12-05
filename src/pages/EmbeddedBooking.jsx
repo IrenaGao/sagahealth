@@ -272,15 +272,17 @@ export default function EmbeddedBooking() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Important Reminder */}
-        <div className="mb-6 bg-amber-50 border-2 border-amber-300 rounded-xl p-4">
-          <div className="flex items-start">
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-900">
-                ⚠️ <span className="ml-1">Important: Your appointment is NOT confirmed until you click "Get your LMN now" or "Pay for my appointment" at the bottom of this page</span>
-              </p>
+        {!oneBookingLink && (
+          <div className="mb-6 bg-amber-50 border-2 border-amber-300 rounded-xl p-4">
+            <div className="flex items-start">
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-900">
+                  ⚠️ <span className="ml-1">Important: Your appointment is NOT confirmed until you click "Get your LMN now" or "Pay for my appointment" at the bottom of this page</span>
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Service Info */}
         <div className="mb-6">
