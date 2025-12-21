@@ -45,6 +45,13 @@ export default function EmbeddedBooking() {
   const [oneBookingLink, setOneBookingLink] = useState(false);
   const [showBookingConfirmed, setShowBookingConfirmed] = useState(false);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    classPackage: ''
+  });
+  const [classOfferings, setClassOfferings] = useState([]);
   const iframeRef = useRef(null);
 
   // Fetch service details
@@ -148,6 +155,37 @@ export default function EmbeddedBooking() {
       setLoading(false);
     }
   };
+
+  // Fetch class offerings when one_booking_link is true and service is available
+  useEffect(() => {
+    const fetchClassOfferings = async () => {
+      if (oneBookingLink && service?.id) {
+        try {
+          console.log('Fetching class offerings for service_id:', service.id);
+          const { data, error } = await supabase
+            .from('class_offerings')
+            .select('*')
+            .eq('service_id', service.id);
+          
+          if (error) {
+            console.error('Error fetching class offerings:', error);
+            setClassOfferings([]);
+          } else {
+            console.log('Class offerings fetched:', data);
+            setClassOfferings(data || []);
+          }
+        } catch (err) {
+          console.error('Error fetching class offerings:', err);
+          setClassOfferings([]);
+        }
+      } else {
+        console.log('Not fetching class offerings - oneBookingLink:', oneBookingLink, 'service?.id:', service?.id);
+        setClassOfferings([]);
+      }
+    };
+
+    fetchClassOfferings();
+  }, [oneBookingLink, service?.id]);
 
   // Callback function when booking is detected
   const onBookingComplete = () => {
@@ -334,39 +372,9 @@ export default function EmbeddedBooking() {
                       </p>
                     </div>
                     <button
-                      onClick={async () => {
+                      onClick={() => {
                         if (!bookingConfirmed) {
-                          setBookingConfirmed(true);
                           setShowBookingConfirmed(true);
-                          
-                          // Increment booking_count in Supabase
-                          if (service?.id) {
-                            try {
-                              // Fetch current booking_count
-                              const { data: currentData, error: fetchError } = await supabase
-                                .from('providers')
-                                .select('booking_count')
-                                .eq('id', service.id)
-                                .single();
-                              
-                              if (!fetchError && currentData) {
-                                const newCount = (currentData.booking_count || 0) + 1;
-                                
-                                // Update booking_count
-                                await supabase
-                                  .from('providers')
-                                  .update({ booking_count: newCount })
-                                  .eq('id', service.id);
-                              }
-                            } catch (err) {
-                              console.error('Error updating booking count:', err);
-                            }
-                          }
-                          
-                          // Close popup after 2 seconds
-                          setTimeout(() => {
-                            setShowBookingConfirmed(false);
-                          }, 2000);
                         }
                       }}
                       disabled={bookingConfirmed}
@@ -523,7 +531,7 @@ export default function EmbeddedBooking() {
         </div>
       </div>
 
-      {/* Booking Confirmed Popup */}
+      {/* Booking Confirmed Form Popup */}
       {showBookingConfirmed && (
         <>
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={() => setShowBookingConfirmed(false)}></div>
@@ -538,14 +546,149 @@ export default function EmbeddedBooking() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-              <div className="text-center">
-                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
-                  <svg className="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
+              <div>
+                <div className="text-center mb-6">
+                  <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                    <svg className="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Booking Confirmed!</h3>
+                  <p className="text-gray-600 mb-4">Please provide your details to complete the booking.</p>
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Booking Confirmed!</h3>
-                <p className="text-gray-600">Your appointment has been confirmed.</p>
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  
+                  // Mark booking as confirmed
+                  setBookingConfirmed(true);
+                  
+                  // Increment booking_count in Supabase
+                  if (service?.id) {
+                    try {
+                      // Fetch current booking_count
+                      const { data: currentData, error: fetchError } = await supabase
+                        .from('providers')
+                        .select('booking_count')
+                        .eq('id', service.id)
+                        .single();
+                      
+                      if (!fetchError && currentData) {
+                        const newCount = (currentData.booking_count || 0) + 1;
+                        
+                        // Update booking_count
+                        await supabase
+                          .from('providers')
+                          .update({ booking_count: newCount })
+                          .eq('id', service.id);
+                      }
+                    } catch (err) {
+                      console.error('Error updating booking count:', err);
+                    }
+                  }
+
+                  // Save form data to client_referrals table
+                  if (service?.id && formData.firstName && formData.lastName) {
+                    try {
+                      const today = new Date().toISOString().split('T')[0]; // Format as YYYY-MM-DD
+                      // Use class/package selected if available, otherwise fall back to service name
+                      const serviceName = formData.classPackage || bookingOption?.name || bookingOption?.serviceType || service?.name || 'Wellness service';
+                      
+                      const { error: referralError } = await supabase
+                        .from('client_referrals')
+                        .insert({
+                          first_name: formData.firstName,
+                          last_name: formData.lastName,
+                          email: formData.email || null,
+                          date: today,
+                          service: serviceName,
+                          provider_id: service.id
+                        });
+                      
+                      if (referralError) {
+                        console.error('Error saving client referral:', referralError);
+                      } else {
+                        console.log('Client referral saved successfully');
+                      }
+                    } catch (err) {
+                      console.error('Error saving client referral:', err);
+                    }
+                  }
+                  
+                  // Close the popup
+                  setShowBookingConfirmed(false);
+                }} className="space-y-4">
+                  <div>
+                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
+                      First Name *
+                    </label>
+                    <input
+                      type="text"
+                      id="firstName"
+                      required
+                      value={formData.firstName}
+                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      placeholder="Enter your first name"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
+                      Last Name *
+                    </label>
+                    <input
+                      type="text"
+                      id="lastName"
+                      required
+                      value={formData.lastName}
+                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      placeholder="Enter your last name"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                      Email <span className="text-gray-500 text-xs">(optional)</span>
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      placeholder="Enter your email"
+                    />
+                  </div>
+                  {(() => {
+                    console.log('Form render - oneBookingLink:', oneBookingLink, 'classOfferings.length:', classOfferings.length, 'classOfferings:', classOfferings);
+                    return null;
+                  })()}
+                  {oneBookingLink && classOfferings.length > 0 && (
+                    <div>
+                      <label htmlFor="classPackage" className="block text-sm font-medium text-gray-700 mb-2">
+                        Class or Package Selected <span className="text-gray-500 text-xs">(optional)</span>
+                      </label>
+                      <select
+                        id="classPackage"
+                        value={formData.classPackage}
+                        onChange={(e) => setFormData({ ...formData, classPackage: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900"
+                      >
+                        <option value="" style={{ color: '#6b7280' }}>Select a class or package...</option>
+                        {classOfferings.map((offering) => (
+                          <option key={offering.id} value={offering.class_or_package_name}>
+                            {offering.class_or_package_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  <button
+                    type="submit"
+                    className="w-full px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
+                  >
+                    Submit
+                  </button>
+                </form>
               </div>
             </div>
           </div>

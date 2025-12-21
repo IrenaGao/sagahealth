@@ -34,7 +34,7 @@ interface UserInfo {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const SAGA_LOGO_PATH = join(__dirname, '../assets/sagasaillogo.jpg');
+const SAGA_LOGO_PATH = join(__dirname, '../assets/logo_sail_only.png');
 
 // State abbreviation to full name mapping
 const STATE_NAMES: { [key: string]: string } = {

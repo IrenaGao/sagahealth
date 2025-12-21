@@ -661,6 +661,7 @@ app.post('/api/generate-lmn', async (req, res) => {
     // Send to SignWell for signature
     console.log('Sending to SignWell for e-signature...');
     const recipientEmail = selectedNurse?.email || 'irenagao2013@gmail.com';
+    // const recipientEmail = 'irenagao2013@gmail.com';
     console.log("RECIPIENT EMAIL", recipientEmail);
     // Use patient's name from LMN form for recipientName
     const recipientName = `${firstName} ${lastName}`;
@@ -693,6 +694,49 @@ app.post('/api/generate-lmn', async (req, res) => {
       } catch (metadataError) {
         console.error('Failed to update payment intent metadata:', metadataError);
         // Don't fail the request if metadata update fails
+      }
+    }
+
+    // Save to client_referrals table
+    if (businessName && firstName && lastName) {
+      try {
+        // Look up provider by business_name to get provider_id
+        let providerId = null;
+        if (businessName && businessName !== 'Any Provider' && businessName !== 'any-provider') {
+          const { data: providerData, error: providerError } = await supabase
+            .from('providers')
+            .select('id')
+            .ilike('business_name', `%${businessName}%`)
+            .limit(1)
+            .maybeSingle();
+          
+          if (!providerError && providerData) {
+            providerId = providerData.id;
+          }
+        }
+
+        const today = new Date().toISOString().split('T')[0]; // Format as YYYY-MM-DD
+        
+        const { error: referralError } = await supabase
+          .from('client_referrals')
+          .insert({
+            first_name: firstName,
+            last_name: lastName,
+            email: email || null,
+            date: today,
+            service: null,
+            provider_id: providerId,
+            is_lmn: true
+          });
+        
+        if (referralError) {
+          console.error('Error saving client referral:', referralError);
+        } else {
+          console.log('Client referral saved successfully');
+        }
+      } catch (err) {
+        console.error('Error saving client referral:', err);
+        // Don't fail the request if referral save fails
       }
     }
 
