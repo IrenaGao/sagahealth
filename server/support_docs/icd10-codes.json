@@ -179,6 +179,26 @@
       "condition": "Stress",
       "code": "F43.8",
       "description": "Other reactions to severe stress"
+    },
+    {
+      "condition": "Supervision of Normal Pregnancy",
+      "code": "Z34.90",
+      "description": "Supervision of normal pregnancy"
+    },
+    {
+      "condition": "Supervision of High-RiskPregnancy",
+      "code": "O09.90",
+      "description": "Supervision of high-risk pregnancy, unspecified trimester"
+    },
+    {
+      "condition": "Multigravida",
+      "code": "O09.52",
+      "description": "Advanced maternal age, multigravida"
+    },
+    {
+      "condition": "High-RiskPregnancy",
+      "code": "O09.70",
+      "description": "High-risk pregnancy due to social/environmental factors"
     }
   ]
 }

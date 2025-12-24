@@ -715,7 +715,11 @@ app.post('/api/generate-lmn', async (req, res) => {
           }
         }
 
-        const today = new Date().toISOString().split('T')[0]; // Format as YYYY-MM-DD
+        // Get date in EST timezone (America/New_York handles EST/EDT automatically)
+        const now = new Date();
+        const estDateString = now.toLocaleString('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
+        const [month, day, year] = estDateString.split('/');
+        const today = `${year}-${month}-${day}`; // Format as YYYY-MM-DD
         
         const { error: referralError } = await supabase
           .from('client_referrals')

@@ -94,6 +94,8 @@ export default function EmbeddedBooking() {
         rating: providerData.rating || null,
         reviewCount: providerData.num_reviews || 0,
         takeRate: providerData.take_rate || null,
+        isApp: providerData.is_app != null,
+        appImageUrl: providerData.is_app || null,
       });
       
       // Set one_booking_link flag
@@ -202,6 +204,42 @@ export default function EmbeddedBooking() {
     });
     
     return true;
+  };
+
+  // Handle App Store badge click - generate UUID and append to URL
+  const handleAppStoreClick = (e) => {
+    e.preventDefault();
+    
+    // Generate UUID
+    const uuid = crypto.randomUUID();
+    
+    // Get the booking URL
+    const baseUrl = bookingOption?.url || '';
+    
+    console.log('Base URL before UUID append:', baseUrl);
+    
+    try {
+      // Append UUID as query parameter
+      const url = new URL(baseUrl);
+      url.searchParams.set('saga_referral_id', uuid);
+      const finalUrl = url.toString();
+      
+      console.log('App Store link clicked with referral UUID:', uuid);
+      console.log('Final URL with UUID:', finalUrl);
+      
+      // Open in new tab
+      window.open(finalUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      // If URL is invalid, try appending as query string manually
+      console.warn('Invalid URL format, attempting manual append:', error);
+      const separator = baseUrl.includes('?') ? '&' : '?';
+      const urlWithUuid = `${baseUrl}${separator}saga_referral_id=${uuid}`;
+      
+      console.log('App Store link clicked with referral UUID:', uuid);
+      console.log('Final URL with UUID (manual append):', urlWithUuid);
+      
+      window.open(urlWithUuid, '_blank', 'noopener,noreferrer');
+    }
   };
 
   // Listen for messages from the iframe (Google Calendar)
@@ -342,33 +380,33 @@ export default function EmbeddedBooking() {
           </div>
         </div>
 
-        {/* Embedded Calendar */}
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-          <iframe
-            ref={iframeRef}
-            src={bookingOption.url}
-            className="w-full h-[800px] border-0"
-            title={`Book ${bookingOption.name}`}
-            onLoad={handleIframeLoad}
-          />
-        </div>
-
-        {/* Payments Section */}
-        <div className={`mt-6 ${oneBookingLink ? '' : 'bg-white rounded-2xl shadow-lg p-6'}`}>
-          <div>
-            {!oneBookingLink && <h2 className="text-2xl font-bold text-gray-900 mb-6">Payments</h2>}
+        {/* Embedded Calendar or App Store Badge */}
+        {service?.isApp ? (
+          <div className="relative rounded-2xl overflow-hidden" style={{ minHeight: '400px' }}>
+            {/* Background image */}
+            {service?.appImageUrl && (
+              <div 
+                className="absolute inset-0 bg-contain bg-center bg-no-repeat"
+                style={{
+                  backgroundImage: `url(${service.appImageUrl})`,
+                  filter: 'blur(1.5px)',
+                }}
+              />
+            )}
+            {/* Gray overlay */}
+            <div className="absolute inset-0 bg-gray-500 bg-opacity-40" />
             
-            {oneBookingLink ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Done booking - Blue subsection */}
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-6">
+            {/* Booking confirmation overlay - only show when booking not confirmed and is_app is set */}
+            {!bookingConfirmed && service?.isApp && oneBookingLink && (
+              <div className="absolute inset-0 flex items-center justify-center z-20">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl pt-3 pb-6 px-16">
                   <div className="flex flex-col h-full">
                     <div className="flex-1">
                       <h3 className="text-lg font-bold text-blue-900 mt-4 mb-3 text-center">
-                        Ready to complete your booking?
+                        Ready to download?
                       </h3>
                       <p className="text-sm text-blue-800 mb-4 flex-1 text-center">
-                        You'll receive a confirmation email shortly.
+                        Enter your name and email to get started.
                       </p>
                     </div>
                     <button
@@ -396,21 +434,103 @@ export default function EmbeddedBooking() {
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          Confirm booking
+                          Continue
                         </>
                       )}
                     </button>
                   </div>
                 </div>
+              </div>
+            )}
+            
+            {/* App Store badge centered - only show when booking is confirmed */}
+            {bookingConfirmed && (
+              <div className="relative flex items-center justify-center h-full min-h-[400px] py-12 z-10">
+                <button
+                  onClick={handleAppStoreClick}
+                  className="inline-block hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-0 p-0 z-10"
+                >
+                  <img 
+                    src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83&releaseDate=1276560000" 
+                    alt="Download on the App Store"
+                    className="h-20 w-auto"
+                  />
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <iframe
+              ref={iframeRef}
+              src={bookingOption.url}
+              className="w-full h-[800px] border-0"
+              title={`Book ${bookingOption.name}`}
+              onLoad={handleIframeLoad}
+            />
+          </div>
+        )}
+
+        {/* Payments Section */}
+        <div className={`mt-6 ${oneBookingLink ? '' : 'bg-white rounded-2xl shadow-lg p-6'}`}>
+          <div>
+            {!oneBookingLink && <h2 className="text-2xl font-bold text-gray-900 mb-6">Payments</h2>}
+            
+            {oneBookingLink ? (
+              <div className={`grid grid-cols-1 ${service?.isApp ? 'lg:grid-cols-1' : 'lg:grid-cols-2'} gap-6`}>
+                {/* Done booking - Blue subsection - only show if not is_app */}
+                {!service?.isApp && (
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-6">
+                    <div className="flex flex-col h-full">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold text-blue-900 mt-4 mb-3 text-center">
+                          Ready to complete your booking?
+                        </h3>
+                        <p className="text-sm text-blue-800 mb-4 flex-1 text-center">
+                          You'll receive a confirmation email shortly.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (!bookingConfirmed) {
+                            setShowBookingConfirmed(true);
+                          }
+                        }}
+                        disabled={bookingConfirmed}
+                        className={`px-8 py-3 font-semibold rounded-lg transition-all shadow-md flex items-center justify-center gap-2 ${
+                          bookingConfirmed
+                            ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white cursor-not-allowed'
+                            : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white hover:shadow-lg'
+                        }`}
+                      >
+                        {bookingConfirmed ? (
+                          <>
+                            <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Booking Confirmed
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Confirm booking
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Get your LMN now - Green subsection */}
                 <div className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl p-6">
-                  <div className="flex flex-col h-full">
-                    <div className="flex-1">
+                  <div className={`flex ${service?.isApp ? 'flex-row items-center gap-12' : 'flex-col h-full'}`}>
+                    <div className={service?.isApp ? 'flex-none w-3/5' : 'flex-1'}>
                       <h3 className="text-lg font-bold text-green-900 mb-3">
                         First time booking this service? Get your LMN now!
                       </h3>
-                      <p className="text-sm text-green-800 mb-4 flex-1">
+                      <p className={`text-sm text-green-800 ${service?.isApp ? 'mb-0' : 'mb-4 flex-1'}`}>
                         Save ~30% on your appointment by unlocking pre-tax HSA/FSA funds. Just take a
                         quick health survey, pay a $20 fee, and get your Letter of Medical Necessity (LMN)
                         in hours.
@@ -418,7 +538,7 @@ export default function EmbeddedBooking() {
                     </div>
                     <button
                       onClick={onBookingComplete}
-                      className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                      className={`${service?.isApp ? 'px-12 py-3 flex-1' : 'px-8 py-3'} bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2`}
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -589,7 +709,11 @@ export default function EmbeddedBooking() {
                   // Save form data to client_referrals table
                   if (service?.id && formData.firstName && formData.lastName) {
                     try {
-                      const today = new Date().toISOString().split('T')[0]; // Format as YYYY-MM-DD
+                      // Get date in EST timezone (America/New_York handles EST/EDT automatically)
+                      const now = new Date();
+                      const estDateString = now.toLocaleString('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
+                      const [month, day, year] = estDateString.split('/');
+                      const today = `${year}-${month}-${day}`; // Format as YYYY-MM-DD
                       // Use class/package selected if available, otherwise fall back to service name
                       const serviceName = formData.classPackage || bookingOption?.name || bookingOption?.serviceType || service?.name || 'Wellness service';
                       

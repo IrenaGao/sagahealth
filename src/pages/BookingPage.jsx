@@ -328,27 +328,6 @@ export default function BookingPage() {
             </>
           )}
         </div>
-
-        {/* Help Text */}
-        {service.complete && (
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <div className="flex gap-3">
-            <svg className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div className="flex-1">
-              <h3 className="text-sm font-semibold text-blue-900 mb-1">How It Works</h3>
-              <ul className="text-sm text-blue-800 space-y-1">
-                <li>• Click on a service card to view the booking calendar</li>
-                <li>• Select your preferred date and time</li>
-                <li>• Fill in your contact information</li>
-                <li>• You'll receive a confirmation email with appointment details</li>
-                <li>• The appointment will be added to your Google Calendar automatically</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-        )}
       </div>
     </div>
   );

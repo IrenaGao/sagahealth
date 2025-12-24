@@ -227,6 +227,7 @@ export default function LMNForm() {
     lastName: '',
     age: '',
     sex: '',
+    pregnant: '',
     hsaProvider: '',
     state: '',
     diagnosedConditions: [],
@@ -235,6 +236,27 @@ export default function LMNForm() {
     preventiveTargets: '',
     attestation: false
   });
+
+  // Automatically add/remove "Pregnancy" from diagnosedConditions based on pregnancy answer
+  useEffect(() => {
+    setFormData(prev => {
+      const hasPregnancy = prev.diagnosedConditions.includes('Pregnancy');
+      
+      if (prev.pregnant === 'Yes' && !hasPregnancy) {
+        return {
+          ...prev,
+          diagnosedConditions: [...prev.diagnosedConditions, 'Pregnancy']
+        };
+      } else if (prev.pregnant !== 'Yes' && hasPregnancy) {
+        return {
+          ...prev,
+          diagnosedConditions: prev.diagnosedConditions.filter(condition => condition !== 'Pregnancy')
+        };
+      }
+      
+      return prev;
+    });
+  }, [formData.pregnant]);
 
   // Available options for conditions
   const conditionOptions = [
@@ -522,6 +544,25 @@ export default function LMNForm() {
                     <option value="Prefer not to say">Prefer not to say</option>
                   </select>
                 </div>
+
+                {/* Pregnancy question - only show if sex is Female */}
+                {formData.sex === 'Female' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Are you pregnant?
+                    </label>
+                    <select
+                      value={formData.pregnant}
+                      onChange={(e) => handleInputChange('pregnant', e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    >
+                      <option value="">Select...</option>
+                      <option value="Yes">Yes</option>
+                      <option value="No">No</option>
+                      <option value="Prefer not to say">Prefer not to say</option>
+                    </select>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
