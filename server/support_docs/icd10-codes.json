@@ -186,7 +186,7 @@
       "description": "Supervision of normal pregnancy"
     },
     {
-      "condition": "Supervision of High-RiskPregnancy",
+      "condition": "Supervision of High-Risk Pregnancy",
       "code": "O09.90",
       "description": "Supervision of high-risk pregnancy, unspecified trimester"
     },
