@@ -184,7 +184,7 @@ export default function WellnessMarketplace() {
             <span className="mr-1">🔍</span>  Don't see your provider listed? Click here to get an LMN for any provider of your choice! ✨
           </button>
         </div>
-      </div>
+        </div>
 
       {/* Main Content */}
       <div className="max-w-[1920px] mx-auto px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 h-[calc(100vh-232px)]">

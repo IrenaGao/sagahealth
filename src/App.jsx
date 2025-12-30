@@ -6,7 +6,6 @@ import EmbeddedBooking from './pages/EmbeddedBooking'
 import LMNForm from './pages/LMNForm'
 import PaymentSuccessPage from './pages/PaymentSuccessPage'
 import ArketaTestPage from './pages/ArketaTestPage'
-import MomenceTestPage from './pages/MomenceTestPage'
 
 export default function App() {
   return (
@@ -19,7 +18,6 @@ export default function App() {
         <Route path="/book/:businessName/lmn-form" element={<LMNForm />} />
         <Route path="/payment-success" element={<PaymentSuccessPage />} />
         <Route path="/arketa-test" element={<ArketaTestPage />} />
-        <Route path="/momence-test" element={<MomenceTestPage />} />
       </Routes>
     </BrowserRouter>
   )

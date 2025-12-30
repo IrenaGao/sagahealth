@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/momence-embed.html",
+      "destination": "/momence-embed.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
