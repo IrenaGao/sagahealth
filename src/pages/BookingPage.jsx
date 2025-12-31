@@ -14,6 +14,7 @@ const buildBusinessNameQuery = (slug) => {
 
 // Helper function to format duration
 const formatDuration = (minutes) => {
+  if (minutes === null || minutes === undefined) return 'Variable Times';
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
@@ -122,16 +123,20 @@ export default function BookingPage() {
           name: service.service_type || 'Service',
           serviceType: service.service_type, // Store service type for LMN form
           serviceTypeDesc: service.overall_desc || null, // Store service type description
-          duration: formatDuration(service.duration_in_mins || 60),
-          durationInMins: service.duration_in_mins || 60, // Store raw minutes for sorting
+          duration: formatDuration(service.duration_in_mins),
+          durationInMins: service.duration_in_mins, // Store raw minutes for sorting (can be null)
           description: `${service.service_type} session`,
           url: service.booking_link || '',
           icon: getServiceIcon(service.service_type),
           price: service.service_pricing || null,
         }));
         
-        // Sort by duration (shortest to longest)
-        const sortedOptions = options.sort((a, b) => a.durationInMins - b.durationInMins);
+        // Sort by duration (shortest to longest), null durations go to the end
+        const sortedOptions = options.sort((a, b) => {
+          if (a.durationInMins === null || a.durationInMins === undefined) return 1;
+          if (b.durationInMins === null || b.durationInMins === undefined) return -1;
+          return a.durationInMins - b.durationInMins;
+        });
         
         setBookingOptions(sortedOptions);
       }
