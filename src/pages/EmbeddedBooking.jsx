@@ -43,6 +43,7 @@ export default function EmbeddedBooking() {
   const [error, setError] = useState(null);
   const [stripeAcctId, setStripeAcctId] = useState(stripeAcctIdFromState || null);
   const [oneBookingLink, setOneBookingLink] = useState(false);
+  const [bookingLink, setBookingLink] = useState(null);
   const [showBookingConfirmed, setShowBookingConfirmed] = useState(false);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [formData, setFormData] = useState({
@@ -54,9 +55,17 @@ export default function EmbeddedBooking() {
   const [classOfferings, setClassOfferings] = useState([]);
   const iframeRef = useRef(null);
 
+  // Debug: Track when bookingLink changes
+  useEffect(() => {
+    console.log("bookingLink state updated to:", bookingLink);
+  }, [bookingLink]);
+
   // Fetch service details
   useEffect(() => {
     fetchServiceDetails();
+    console.log("service details fetched");
+    console.log("bookingLink", bookingLink);
+    console.log("bookingOption", bookingOption);
   }, [businessName]);
 
   const fetchServiceDetails = async () => {
@@ -96,10 +105,12 @@ export default function EmbeddedBooking() {
         takeRate: providerData.take_rate || null,
         isApp: providerData.is_app != null,
         appImageUrl: providerData.is_app || null,
+        widgetType: providerData.widget_type || null,
       });
       
       // Set one_booking_link flag
       setOneBookingLink(providerData.one_booking_link === true);
+      setBookingLink(providerData.booking_link || null);
       
       // Set stripe_acct_id from providerData if not already set from navigation state
       if (!stripeAcctId && providerData.stripe_acct_id) {
@@ -125,6 +136,7 @@ export default function EmbeddedBooking() {
           console.log('Service data:', { 
             service_name: service.service_name, 
             service_type: service.service_type,
+            url: service.booking_link,
             using: serviceName 
           });
           return {
@@ -140,6 +152,16 @@ export default function EmbeddedBooking() {
         });
         
         setBookingOptions(options);
+        
+        // Get the booking_link from provider_services for all providers
+        if (servicesData && servicesData.length > 0) {
+          // Use the first service's booking_link, or you could filter by a specific service
+          const linkValue = servicesData[0]?.booking_link || null;
+          console.log("Setting bookingLink to:", linkValue);
+          setBookingLink(linkValue);
+          // Note: bookingLink state won't update immediately - it updates on next render
+          // Check the useEffect above to see when it actually updates
+        }
         
         // Find the selected booking option
         if (bookingOptionId) {
@@ -174,6 +196,7 @@ export default function EmbeddedBooking() {
             setClassOfferings([]);
           } else {
             console.log('Class offerings fetched:', data);
+            console.log('booking link', bookingLink);
             setClassOfferings(data || []);
           }
         } catch (err) {
@@ -182,12 +205,14 @@ export default function EmbeddedBooking() {
         }
       } else {
         console.log('Not fetching class offerings - oneBookingLink:', oneBookingLink, 'service?.id:', service?.id);
+        console.log(bookingOption?.url);
         setClassOfferings([]);
       }
     };
 
     fetchClassOfferings();
   }, [oneBookingLink, service?.id]);
+
 
   // Callback function when booking is detected
   const onBookingComplete = () => {
@@ -350,20 +375,20 @@ export default function EmbeddedBooking() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Important Reminder */}
-         <div className="mb-6 bg-amber-50 border-2 border-amber-300 rounded-xl p-4">
-           <div className="flex items-start">
-             <div className="flex-1">
-               <p className="text-sm font-semibold text-amber-900">
+        <div className="mb-6 bg-amber-50 border-2 border-amber-300 rounded-xl p-4">
+          <div className="flex items-start">
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-900">
                  ⚠️ <span className="ml-1">
                    {oneBookingLink 
                      ? 'Important: Your purchase is NOT confirmed until you click "Confirm booking" at the bottom of this page'
                      : 'Important: Your purchase is NOT confirmed until you click "Get your LMN now" or "Pay for my appointment" at the bottom of this page'
                    }
                  </span>
-               </p>
-             </div>
-           </div>
-         </div>
+              </p>
+            </div>
+          </div>
+        </div>
 
         {/* Service Info */}
         <div className="mb-6">
@@ -460,15 +485,19 @@ export default function EmbeddedBooking() {
             )}
           </div>
         ) : (
-          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-            <iframe
-              ref={iframeRef}
-              src={bookingOption.url}
-              className="w-full h-[800px] border-0"
-              title={`Book ${bookingOption.name}`}
-              onLoad={handleIframeLoad}
-            />
-          </div>
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+          <iframe
+            ref={iframeRef}
+            {...(service?.widgetType === 'momence' && bookingLink ? {
+              srcdoc: bookingOption.url
+            } : {
+              src: bookingOption.url
+            })}
+            className="w-full h-[800px] border-0"
+            title={`Book ${bookingOption.name}`}
+            onLoad={handleIframeLoad}
+          />
+        </div>
         )}
 
         {/* Payments Section */}
@@ -550,33 +579,33 @@ export default function EmbeddedBooking() {
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* First time using HSA funds - Green subsection */}
-                <div className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl p-6">
-                  <div className="flex flex-col h-full">
+            {/* First time using HSA funds - Green subsection */}
+            <div className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl p-6">
+              <div className="flex flex-col h-full">
                     <div className="flex-1">
-                      <h3 className="text-lg font-bold text-green-900 mb-3">
+                <h3 className="text-lg font-bold text-green-900 mb-3">
                         First time booking this service? Get your LMN now!
-                      </h3>
-                      <p className="text-sm text-green-800 mb-4 flex-1">
-                        Save ~30% on your appointment by unlocking pre-tax HSA/FSA funds. Just take a
-                        quick health survey, pay a $20 fee, and get your Letter of Medical Necessity (LMN)
+                </h3>
+                <p className="text-sm text-green-800 mb-4 flex-1">
+                  Save ~30% on your appointment by unlocking pre-tax HSA/FSA funds. Just take a
+                  quick health survey, pay a $20 fee, and get your Letter of Medical Necessity (LMN)
                         in hours. You can also pay for your appointment here!
-                      </p>
+                </p>
                     </div>
-                    <button
-                      onClick={onBookingComplete}
+                <button
+                  onClick={onBookingComplete}
                       className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      Get your LMN now
-                    </button>
-                  </div>
-                </div>
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Get your LMN now
+                </button>
+              </div>
+            </div>
 
-                {/* Already have an LMN - Blue subsection */}
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-6">
+            {/* Already have an LMN - Blue subsection */}
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-6">
               <div className="flex flex-col h-full">
                 <h3 className="text-lg font-bold text-blue-900 mb-3">
                   Already have an LMN? Proceed directly to payment!
@@ -644,8 +673,8 @@ export default function EmbeddedBooking() {
                   Pay for my appointment (${(bookingOption?.price || 80).toFixed(2)})
                 </button>
               </div>
-            </div>
               </div>
+            </div>
             )}
           </div>
         </div>

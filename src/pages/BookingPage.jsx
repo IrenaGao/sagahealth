@@ -288,7 +288,13 @@ export default function BookingPage() {
               </p>
             </div>
                       )}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className={`grid gap-4 ${
+              optionsForType.length === 1 
+                ? 'grid-cols-1 md:grid-cols-2' 
+                : optionsForType.length === 2
+                ? 'grid-cols-1 md:grid-cols-2'
+                : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'
+            }`}>
                         {optionsForType.map((option) => (
                 <div
                   key={option.id}

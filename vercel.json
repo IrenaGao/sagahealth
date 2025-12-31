@@ -5,6 +5,10 @@
       "destination": "/momence-embed.html"
     },
     {
+      "source": "/mindbody-embed.html",
+      "destination": "/mindbody-embed.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
