@@ -137,6 +137,7 @@ export default function EmbeddedBooking() {
             service_name: service.service_name, 
             service_type: service.service_type,
             url: service.booking_link,
+            description: service.description,
             using: serviceName 
           });
           return {
@@ -148,6 +149,7 @@ export default function EmbeddedBooking() {
           url: service.booking_link || '',
           icon: getServiceIcon(service.service_type),
           price: service.service_pricing || null,
+          description: service.description || null, // Store description for app type detection
           };
         });
         
@@ -167,9 +169,9 @@ export default function EmbeddedBooking() {
         if (bookingOptionId) {
           const selected = options.find(opt => opt.id === bookingOptionId);
           setBookingOption(selected);
-        } else if (options.length === 1) {
-          // If there's only one booking option and no bookingOption param, auto-select it
-          // This handles the case when one_booking_link is true
+        } else if (options.length >= 1) {
+          // If there's at least one booking option and no bookingOption param, auto-select the first one
+          // This handles the case when one_booking_link is true or when is_app is true
           setBookingOption(options[0]);
         }
       }
@@ -232,14 +234,14 @@ export default function EmbeddedBooking() {
   };
 
   // Handle App Store badge click - generate UUID and append to URL
-  const handleAppStoreClick = (e) => {
+  const handleAppStoreClick = (e, appUrl) => {
     e.preventDefault();
     
     // Generate UUID
     const uuid = crypto.randomUUID();
     
-    // Get the booking URL
-    const baseUrl = bookingOption?.url || '';
+    // Get the booking URL from the passed appUrl or bookingOption
+    const baseUrl = appUrl || bookingOption?.url || '';
     
     console.log('Base URL before UUID append:', baseUrl);
     
@@ -335,10 +337,20 @@ export default function EmbeddedBooking() {
     );
   }
 
-  if (error || !service || !bookingOption) {
+  if (error || !service) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl text-red-600">{error || 'Booking option not found'}</div>
+        <div className="text-xl text-red-600">{error || 'Service not found'}</div>
+      </div>
+    );
+  }
+
+  // For app services, bookingOption might not be set if multiple services exist
+  // But we can still render the page with the app badges
+  if (!service?.isApp && !bookingOption) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-xl text-red-600">Booking option not found</div>
       </div>
     );
   }
@@ -393,16 +405,18 @@ export default function EmbeddedBooking() {
         {/* Service Info */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">{service.name}</h1>
-          <div className="flex items-center gap-4 text-gray-600">
-            <span className="text-2xl">{bookingOption.icon}</span>
-            <span className="text-lg font-medium">{bookingOption.name}</span>
-            {bookingOption.price && (
-              <>
-                <span className="text-gray-400">•</span>
-                <span className="text-emerald-600 font-semibold">${bookingOption.price}</span>
-              </>
-            )}
-          </div>
+          {bookingOption && (
+            <div className="flex items-center gap-4 text-gray-600">
+              <span className="text-2xl">{bookingOption.icon}</span>
+              <span className="text-lg font-medium">{bookingOption.name}</span>
+              {bookingOption.price && (
+                <>
+                  <span className="text-gray-400">•</span>
+                  <span className="text-emerald-600 font-semibold">${bookingOption.price}</span>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Embedded Calendar or App Store Badge */}
@@ -468,23 +482,67 @@ export default function EmbeddedBooking() {
               </div>
             )}
             
-            {/* App Store badge centered - only show when booking is confirmed */}
-            {bookingConfirmed && (
-              <div className="relative flex items-center justify-center h-full min-h-[400px] py-12 z-10">
-                <button
-                  onClick={handleAppStoreClick}
-                  className="inline-block hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-0 p-0 z-10"
-                >
-                  <img 
-                    src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83&releaseDate=1276560000" 
-                    alt="Download on the App Store"
-                    className="h-20 w-auto"
-                  />
-                </button>
-              </div>
-            )}
+            {/* App Store badges - only show when booking is confirmed */}
+            {bookingConfirmed && (() => {
+              // Filter app services by description
+              const appleService = bookingOptions.find(opt => opt.description === 'apple');
+              const googleService = bookingOptions.find(opt => opt.description === 'google');
+              
+              // If multiple services exist, show badges based on description
+              // If only one service exists and it's an app, show it as Apple (fallback)
+              if (bookingOptions.length > 1) {
+                return (
+                  <div className="relative flex flex-col sm:flex-row items-center justify-center h-full min-h-[400px] py-12 z-10 gap-4">
+                    {appleService && (
+                      <button
+                        onClick={(e) => handleAppStoreClick(e, appleService.url)}
+                        className="inline-block hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-0 p-0 z-10"
+                      >
+                        <img 
+                          src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83&releaseDate=1276560000" 
+                          alt="Download on the App Store"
+                          className="h-20 w-auto"
+                          style={{ height: '80px', width: 'auto' }}
+                        />
+                      </button>
+                    )}
+                    {googleService && (
+                      <button
+                        onClick={(e) => handleAppStoreClick(e, googleService.url)}
+                        className="inline-block hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-0 p-0 z-10"
+                      >
+                        <img 
+                          src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" 
+                          alt="Get it on Google Play"
+                          className="h-20 w-auto"
+                          style={{ height: '115px', width: 'auto' }}
+                        />
+                      </button>
+                    )}
+                  </div>
+                );
+              } else if (bookingOptions.length === 1 && bookingOption) {
+                // Single app service - show Apple badge as fallback
+                return (
+                  <div className="relative flex items-center justify-center h-full min-h-[400px] py-12 z-10">
+                    <button
+                      onClick={(e) => handleAppStoreClick(e, bookingOption.url)}
+                      className="inline-block hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-0 p-0 z-10"
+                    >
+                      <img 
+                        src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83&releaseDate=1276560000" 
+                        alt="Download on the App Store"
+                        className="h-20 w-auto"
+                        style={{ height: '80px', width: 'auto' }}
+                      />
+                    </button>
+                  </div>
+                );
+              }
+              return null;
+            })()}
           </div>
-        ) : (
+        ) : bookingOption ? (
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
           <iframe
             ref={iframeRef}
@@ -498,7 +556,7 @@ export default function EmbeddedBooking() {
             onLoad={handleIframeLoad}
           />
         </div>
-        )}
+        ) : null}
 
         {/* Payments Section */}
         <div className={`mt-6 ${

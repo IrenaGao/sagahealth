@@ -64,7 +64,21 @@ export default function ServiceDetails() {
           stripeAcctId: data.stripe_acct_id || null,
           bookingSystemEnabled: data.booking_system !== false,
           oneBookingLink: data.one_booking_link === true,
+          isApp: data.is_app != null,
         };
+        
+        // If is_app is true, skip BookingPage and go directly to EmbeddedBooking
+        if (data.is_app != null) {
+          navigate(`/book/${businessSlug}/schedule`, {
+            replace: true,
+            state: { 
+              stripeAcctId: data.stripe_acct_id || null,
+              bookingSystemEnabled: true,
+            },
+          });
+          return;
+        }
+        
         setService(mappedData);
         setError(null);
       }
