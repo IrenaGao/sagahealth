@@ -78,6 +78,7 @@ export default function WellnessMarketplace() {
           
           return {
             id: provider.id,
+            order: provider.order ?? null,
             name: provider.business_name || 'Unnamed Business',
             categories: categories, // Now an array
             description: provider.short_summary || '',
@@ -96,6 +97,25 @@ export default function WellnessMarketplace() {
         })
         
         const mappedData = await Promise.all(mappedDataPromises)
+        
+        // Sort by order first (nulls last), then by id
+        mappedData.sort((a, b) => {
+          // If both have order values, sort by order
+          if (a.order !== null && b.order !== null) {
+            if (a.order !== b.order) {
+              return a.order - b.order
+            }
+          }
+          // If only one has order, prioritize it
+          if (a.order !== null && b.order === null) {
+            return -1
+          }
+          if (a.order === null && b.order !== null) {
+            return 1
+          }
+          // If both are null or same order, sort by id
+          return a.id - b.id
+        })
         
         console.log("Mapped data with coordinates:", mappedData)
         setProviders(mappedData)
