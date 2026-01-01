@@ -295,9 +295,7 @@ export default function BookingPage() {
                       )}
             <div className={`grid gap-4 ${
               optionsForType.length === 1 
-                ? 'grid-cols-1 md:grid-cols-2' 
-                : optionsForType.length === 2
-                ? 'grid-cols-1 md:grid-cols-2'
+                ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-2' 
                 : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'
             }`}>
                         {optionsForType.map((option) => (

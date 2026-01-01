@@ -507,115 +507,195 @@ export default function EmbeddedBooking() {
             
             {oneBookingLink ? (
               <div className={`grid grid-cols-1 ${service?.isApp ? 'lg:grid-cols-1' : 'lg:grid-cols-2'} gap-6`}>
-                {/* Done booking - Blue subsection - only show if not is_app */}
-                {!service?.isApp && (
-                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-6">
-                    <div className="flex flex-col h-full">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-bold text-blue-900 mt-4 mb-3 text-center">
-                          Ready to complete your booking?
-                        </h3>
-                        <p className="text-sm text-blue-800 mb-4 flex-1 text-center">
-                          You'll receive a confirmation email shortly.
-                        </p>
+                {/* Conditional rendering based on business name */}
+                {(service?.name === 'Tension Intervention' || service?.name === 'Reclaimed Being') ? (
+                  <>
+                    {/* First time booking - Green subsection */}
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl p-6">
+                      <div className={`flex ${service?.isApp ? 'flex-row items-center gap-12' : 'flex-col h-full'}`}>
+                        <div className={service?.isApp ? 'flex-none w-3/5' : 'flex-1'}>
+                          <h3 className="text-lg font-bold text-green-900 mb-3">
+                            First time booking this service? Get your LMN now!
+                          </h3>
+                          <p className={`text-sm text-green-800 ${service?.isApp ? 'mb-0' : 'mb-4 flex-1'}`}>
+                            Save ~30% on your appointment by unlocking pre-tax HSA/FSA funds. Just take a
+                            quick health survey, pay a $20 fee, and get your Letter of Medical Necessity (LMN)
+                            in hours.
+                          </p>
+                        </div>
+                        <button
+                          onClick={onBookingComplete}
+                          className={`${service?.isApp ? 'px-12 py-3 flex-1' : 'px-8 py-3'} bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2`}
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          Get your LMN now
+                        </button>
                       </div>
-                      <button
-                        onClick={() => {
-                          if (!bookingConfirmed) {
-                            setShowBookingConfirmed(true);
-                          }
-                        }}
-                        disabled={bookingConfirmed}
-                        className={`px-8 py-3 font-semibold rounded-lg transition-all shadow-md flex items-center justify-center gap-2 ${
-                          bookingConfirmed
-                            ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white cursor-not-allowed'
-                            : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white hover:shadow-lg'
-                        }`}
-                      >
-                        {bookingConfirmed ? (
-                          <>
-                            <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            Booking Confirmed
-                          </>
-                        ) : (
-                          <>
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            Confirm booking
-                          </>
-                        )}
-                      </button>
                     </div>
-                  </div>
-                )}
 
-                {/* Get your LMN now - Green subsection */}
-                <div className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl p-6">
-                  <div className={`flex ${service?.isApp ? 'flex-row items-center gap-12' : 'flex-col h-full'}`}>
-                    <div className={service?.isApp ? 'flex-none w-3/5' : 'flex-1'}>
-                      <h3 className="text-lg font-bold text-green-900 mb-3">
-                        First time booking this service? Get your LMN now!
-                      </h3>
-                      <p className={`text-sm text-green-800 ${service?.isApp ? 'mb-0' : 'mb-4 flex-1'}`}>
-                        Save ~30% on your appointment by unlocking pre-tax HSA/FSA funds. Just take a
-                        quick health survey, pay a $20 fee, and get your Letter of Medical Necessity (LMN)
-                        in hours.
-                      </p>
+                    {/* Already have an LMN - Blue subsection - only show if not is_app */}
+                    {!service?.isApp && (
+                      <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-6">
+                        <div className="flex flex-col h-full">
+                          <div className="flex-1">
+                            <h3 className="text-lg font-bold text-blue-900 mb-3">
+                              Already have an LMN? Proceed directly to payment!
+                            </h3>
+                            <p className="text-sm text-blue-800 mb-4 flex-1">
+                              If you already have a Letter of Medical Necessity, you can proceed directly to payment.
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              if (!bookingConfirmed) {
+                                setShowBookingConfirmed(true);
+                              }
+                            }}
+                            disabled={bookingConfirmed}
+                            className={`px-8 py-3 font-semibold rounded-lg transition-all shadow-md flex items-center justify-center gap-2 ${
+                              bookingConfirmed
+                                ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white cursor-not-allowed'
+                                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white hover:shadow-lg'
+                            }`}
+                          >
+                            {bookingConfirmed ? (
+                              <>
+                                <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Booking Confirmed
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Confirm booking
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {/* Done booking - Blue subsection - only show if not is_app */}
+                    {!service?.isApp && (
+                      <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-6">
+                        <div className="flex flex-col h-full">
+                          <div className="flex-1 flex flex-col justify-center">
+                            <h3 className="text-lg font-bold text-blue-900 mb-3 text-center">
+                              Ready to complete your booking?
+                            </h3>
+                            <p className="text-sm text-blue-800 mb-4 text-center">
+                              You'll receive a confirmation email shortly.
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              if (!bookingConfirmed) {
+                                setShowBookingConfirmed(true);
+                              }
+                            }}
+                            disabled={bookingConfirmed}
+                            className={`px-8 py-3 font-semibold rounded-lg transition-all shadow-md flex items-center justify-center gap-2 ${
+                              bookingConfirmed
+                                ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white cursor-not-allowed'
+                                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white hover:shadow-lg'
+                            }`}
+                          >
+                            {bookingConfirmed ? (
+                              <>
+                                <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Booking Confirmed
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Confirm booking
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Get your LMN now - Green subsection */}
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl p-6">
+                      <div className={`flex ${service?.isApp ? 'flex-row items-center gap-12' : 'flex-col h-full'}`}>
+                        <div className={service?.isApp ? 'flex-none w-3/5' : 'flex-1'}>
+                          <h3 className="text-lg font-bold text-green-900 mb-3">
+                            First time booking this service? Get your LMN now!
+                          </h3>
+                          <p className={`text-sm text-green-800 ${service?.isApp ? 'mb-0' : 'mb-4 flex-1'}`}>
+                            Save ~30% on your appointment by unlocking pre-tax HSA/FSA funds. Just take a
+                            quick health survey, pay a $20 fee, and get your Letter of Medical Necessity (LMN)
+                            in hours.
+                          </p>
+                        </div>
+                        <button
+                          onClick={onBookingComplete}
+                          className={`${service?.isApp ? 'px-12 py-3 flex-1' : 'px-8 py-3'} bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2`}
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          Get your LMN now
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      onClick={onBookingComplete}
-                      className={`${service?.isApp ? 'px-12 py-3 flex-1' : 'px-8 py-3'} bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2`}
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      Get your LMN now
-                    </button>
-                  </div>
-                </div>
+                  </>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* First time using HSA funds - Green subsection */}
-            <div className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl p-6">
-              <div className="flex flex-col h-full">
-                    <div className="flex-1">
-                <h3 className="text-lg font-bold text-green-900 mb-3">
-                        First time booking this service? Get your LMN now!
-                </h3>
-                <p className="text-sm text-green-800 mb-4 flex-1">
-                  Save ~30% on your appointment by unlocking pre-tax HSA/FSA funds. Just take a
-                  quick health survey, pay a $20 fee, and get your Letter of Medical Necessity (LMN)
-                        in hours. You can also pay for your appointment here!
-                </p>
+                {/* Conditional rendering based on business name */}
+                {(service?.name === 'Tension Intervention' || service?.name === 'Reclaimed Being') ? (
+                  <>
+                    {/* First time booking - Green subsection */}
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl p-6">
+                      <div className="flex flex-col h-full">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-bold text-green-900 mb-3">
+                            First time booking this service? Get your LMN now!
+                          </h3>
+                          <p className="text-sm text-green-800 mb-4 flex-1">
+                            Save ~30% on your appointment by unlocking pre-tax HSA/FSA funds. Just take a
+                            quick health survey, pay a $20 fee, and get your Letter of Medical Necessity (LMN)
+                            in hours. You can also pay for your appointment here!
+                          </p>
+                        </div>
+                        <button
+                          onClick={onBookingComplete}
+                          className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          Get your LMN now
+                        </button>
+                      </div>
                     </div>
-                <button
-                  onClick={onBookingComplete}
-                      className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Get your LMN now
-                </button>
-              </div>
-            </div>
 
-            {/* Already have an LMN - Blue subsection */}
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-6">
-              <div className="flex flex-col h-full">
-                <h3 className="text-lg font-bold text-blue-900 mb-3">
-                  Already have an LMN? Proceed directly to payment!
-                </h3>
-                <p className="text-sm text-blue-800 mb-4 flex-1">
-                  If you already have a Letter of Medical Necessity for this service, you can proceed
-                  directly to payment and use your HSA/FSA funds for reimbursement.
-                </p>
-                <button
-                  onClick={async () => {
+                    {/* Already have an LMN - Blue subsection */}
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-6">
+                      <div className="flex flex-col h-full">
+                        <h3 className="text-lg font-bold text-blue-900 mb-3">
+                          Already have an LMN? Proceed directly to payment!
+                        </h3>
+                        <p className="text-sm text-blue-800 mb-4 flex-1">
+                          If you already have a Letter of Medical Necessity for this service, you can proceed
+                          directly to payment and use your HSA/FSA funds for reimbursement.
+                        </p>
+                        <button
+                          onClick={async () => {
                     try {
                       const servicePrice = bookingOption.price || 80;
                       const baseUrl = window.location.origin;
@@ -673,8 +753,108 @@ export default function EmbeddedBooking() {
                   Pay for my appointment (${(bookingOption?.price || 80).toFixed(2)})
                 </button>
               </div>
-              </div>
             </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Ready to complete your booking - Blue subsection */}
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-6">
+                      <div className="flex flex-col h-full">
+                        <div className="flex-1 flex flex-col justify-center">
+                          <h3 className="text-lg font-bold text-blue-900 mb-3 text-center">
+                            Ready to complete your booking?
+                          </h3>
+                          <p className="text-sm text-blue-800 mb-4 text-center">
+                            You'll receive a confirmation email shortly.
+                          </p>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            try {
+                              const servicePrice = bookingOption.price || 80;
+                              const baseUrl = window.location.origin;
+                              const successUrl = `${baseUrl}/payment-success?session_id={CHECKOUT_SESSION_ID}`;
+                              const cancelUrl = `${baseUrl}${window.location.pathname}?canceled=true`;
+
+                              const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/create-checkout-session`, {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                  amount: servicePrice,
+                                  stripeAcctId: stripeAcctId,
+                                  paymentOption: 'service-only',
+                                  servicePrice: servicePrice,
+                                  serviceName: bookingOption.name,
+                                  duration: bookingOption.duration || '60 min',
+                                  firstHealthCondition: null,
+                                  businessName: service.name,
+                                  businessAddress: service.address || '',
+                                  takeRate: service.takeRate,
+                                  receiptEmail: null,
+                                  successUrl: successUrl,
+                                  cancelUrl: cancelUrl,
+                                  metadata: {
+                                    source: 'saga-health-service-only',
+                                    serviceName: bookingOption.name,
+                                    businessName: service.name,
+                                  }
+                                }),
+                              });
+
+                              if (!response.ok) {
+                                throw new Error('Failed to create checkout session');
+                              }
+
+                              const data = await response.json();
+                              if (data.url) {
+                                window.location.href = data.url;
+                              } else {
+                                throw new Error('No checkout URL received');
+                              }
+                            } catch (error) {
+                              console.error('Error creating checkout session:', error);
+                              alert(`Payment failed: ${error.message}`);
+                            } 
+                          }}
+                          className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Confirm booking
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* First time booking - Green subsection */}
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl p-6">
+                      <div className="flex flex-col h-full">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-bold text-green-900 mb-3">
+                            First time booking this service? Get your LMN now!
+                          </h3>
+                          <p className="text-sm text-green-800 mb-4 flex-1">
+                            Save ~30% on your appointment by unlocking pre-tax HSA/FSA funds. Just take a
+                            quick health survey, pay a $20 fee, and get your Letter of Medical Necessity (LMN)
+                            in hours. You can also pay for your appointment here!
+                          </p>
+                        </div>
+                        <button
+                          onClick={onBookingComplete}
+                          className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          Get your LMN now
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
           </div>
         </div>

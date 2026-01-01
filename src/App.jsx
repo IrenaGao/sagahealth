@@ -7,6 +7,7 @@ import LMNForm from './pages/LMNForm'
 import PaymentSuccessPage from './pages/PaymentSuccessPage'
 import ArketaTestPage from './pages/ArketaTestPage'
 import MindbodyTestPage from './pages/MindbodyTestPage'
+import AmeliaTestPage from './pages/AmeliaTestPage'
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
         <Route path="/payment-success" element={<PaymentSuccessPage />} />
         <Route path="/arketa-test" element={<ArketaTestPage />} />
         <Route path="/mindbody-test" element={<MindbodyTestPage />} />
+        <Route path="/amelia-test" element={<AmeliaTestPage />} />
       </Routes>
     </BrowserRouter>
   )
