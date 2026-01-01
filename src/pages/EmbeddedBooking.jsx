@@ -501,9 +501,17 @@ export default function EmbeddedBooking() {
         )}
 
         {/* Payments Section */}
-        <div className={`mt-6 ${oneBookingLink ? '' : 'bg-white rounded-2xl shadow-lg p-6'}`}>
+        <div className={`mt-6 ${
+          oneBookingLink 
+            ? '' 
+            : (service?.name === 'Tension Intervention' || service?.name === 'Reclaimed Being')
+              ? 'bg-white rounded-2xl shadow-lg p-6'
+              : ''
+        }`}>
           <div>
-            {!oneBookingLink && <h2 className="text-2xl font-bold text-gray-900 mb-6">Payments</h2>}
+            {!oneBookingLink && (service?.name === 'Tension Intervention' || service?.name === 'Reclaimed Being') && (
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Payments</h2>
+            )}
             
             {oneBookingLink ? (
               <div className={`grid grid-cols-1 ${service?.isApp ? 'lg:grid-cols-1' : 'lg:grid-cols-2'} gap-6`}>
