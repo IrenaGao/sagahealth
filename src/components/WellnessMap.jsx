@@ -26,15 +26,36 @@ const mapOptions = {
   ],
 };
 
-export default function WellnessMap({ listings, highlightedId, onMarkerClick }) {
+export default function WellnessMap({ listings, highlightedId, onMarkerClick, userLocation }) {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const [selectedMarker, setSelectedMarker] = useState(null);
+  const [mapCenter, setMapCenter] = useState(defaultCenter);
   
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: apiKey || '',
   });
 
   const mapRef = useRef(null);
+
+  // Update center when userLocation changes
+  useEffect(() => {
+    if (userLocation) {
+      console.log('Centering map on user location:', userLocation)
+      setMapCenter({
+        lat: userLocation.lat,
+        lng: userLocation.lng
+      })
+      
+      // Pan map to user location if already loaded
+      if (mapRef.current) {
+        mapRef.current.panTo({
+          lat: userLocation.lat,
+          lng: userLocation.lng
+        })
+        mapRef.current.setZoom(12)
+      }
+    }
+  }, [userLocation])
 
   // Check if API key is missing
   if (!apiKey) {
@@ -90,6 +111,9 @@ export default function WellnessMap({ listings, highlightedId, onMarkerClick }) 
   // Fit bounds to show all markers
   useEffect(() => {
     if (!mapRef.current || listings.length === 0) return;
+
+    // If userLocation is set, we'll handle centering separately
+    if (userLocation) return;
 
     const bounds = new window.google.maps.LatLngBounds();
     listings.forEach((listing) => {
@@ -163,7 +187,7 @@ export default function WellnessMap({ listings, highlightedId, onMarkerClick }) 
   return (
     <GoogleMap
       mapContainerStyle={mapContainerStyle}
-      center={defaultCenter}
+      center={mapCenter}
       zoom={12}
       options={mapOptions}
       onLoad={onLoad}

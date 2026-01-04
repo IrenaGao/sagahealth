@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import WellnessMarketplace from './pages/WellnessMarketplace'
+import WellnessMarketplace from './pages/WellnessMarketplace/WellnessMarketplace.controller'
 import ServiceDetails from './pages/ServiceDetails'
 import BookingPage from './pages/BookingPage'
 import EmbeddedBooking from './pages/EmbeddedBooking'

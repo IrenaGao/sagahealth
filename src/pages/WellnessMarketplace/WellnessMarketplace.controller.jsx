@@ -1,0 +1,333 @@
+import { useState, useMemo, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { supabase } from '../../supabaseClient'
+import WellnessMarketplaceView from './WellnessMarketplace.view'
+
+export default function WellnessMarketplace() {
+  const navigate = useNavigate()
+  const [providers, setProviders] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('All')
+  const [selectedBookableFilter, setSelectedBookableFilter] = useState('All')
+  const [highlightedId, setHighlightedId] = useState(undefined)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [userLocation, setUserLocation] = useState(null)
+  const listRefs = useRef({})
+  const ITEMS_PER_PAGE = 6
+  const RADIUS_MILES = 50
+
+  // Fetch providers from Supabase
+  useEffect(() => {
+    fetchProviders()
+  }, [])
+
+  // Request user's location on page load
+  useEffect(() => {
+    const getLocationFromIP = async () => {
+      try {
+        console.log('📍 Attempting IP-based location...')
+        const response = await fetch('https://ipapi.co/json/')
+        const data = await response.json()
+        
+        if (data.latitude && data.longitude) {
+          const locationData = {
+            lat: data.latitude,
+            lng: data.longitude,
+            address: `${data.city}, ${data.region_code}, ${data.country_name}`
+          }
+          console.log('✅ IP-based location:', locationData)
+          setUserLocation(locationData)
+        }
+      } catch (error) {
+        console.error('❌ IP-based location failed:', error)
+      }
+    }
+
+    console.log('Checking for geolocation support...')
+    if ('geolocation' in navigator) {
+      console.log('Requesting user location...')
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords
+          console.log('✅ User coordinates received:', latitude, longitude)
+          
+          // Reverse geocode to get address
+          try {
+            const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+            if (!apiKey) {
+              console.error('Google Maps API key not configured')
+              return
+            }
+            
+            const response = await fetch(
+              `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`
+            )
+            const data = await response.json()
+            
+            if (data.results && data.results.length > 0) {
+              const formattedAddress = data.results[0].formatted_address
+              const locationData = {
+                lat: latitude,
+                lng: longitude,
+                address: formattedAddress
+              }
+              console.log('✅ Auto-detected location:', locationData)
+              console.log('Setting user location state...')
+              setUserLocation(locationData)
+              console.log('✅ User location state updated')
+            } else {
+              console.error('No reverse geocoding results found, trying IP-based location')
+              getLocationFromIP()
+            }
+          } catch (error) {
+            console.error('❌ Error reverse geocoding user location:', error)
+            getLocationFromIP()
+          }
+        },
+        (error) => {
+          console.log('❌ User denied location permission or error occurred:', error.message, error.code)
+          console.log('Falling back to IP-based location...')
+          getLocationFromIP()
+        },
+        {
+          enableHighAccuracy: false,
+          timeout: 5000,
+          maximumAge: 0
+        }
+      )
+    } else {
+      console.log('❌ Geolocation is not supported by this browser, using IP-based location')
+      getLocationFromIP()
+    }
+  }, [])
+
+  // Calculate distance between two coordinates in miles using Haversine formula
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 3959 // Earth's radius in miles
+    const dLat = (lat2 - lat1) * Math.PI / 180
+    const dLon = (lon2 - lon1) * Math.PI / 180
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    return R * c
+  }
+
+  // Geocode address to coordinates
+  const geocodeAddress = async (address) => {
+    if (!address) return { lat: 40.7484, lng: -73.9857 } // Default NYC center
+    
+    try {
+      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+      if (!apiKey) return { lat: 40.7484, lng: -73.9857 }
+      
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`
+      )
+      const data = await response.json()
+      
+      if (data.results && data.results.length > 0) {
+        const location = data.results[0].geometry.location
+        return { lat: location.lat, lng: location.lng }
+      }
+    } catch (err) {
+      console.error('Geocoding error for address:', address, err)
+    }
+    
+    return { lat: 40.7484, lng: -73.9857 } // Fallback to default
+  }
+
+  const fetchProviders = async () => {
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('providers')
+        .select('*')
+        .order('id', { ascending: true })
+      
+      console.log("Raw data from Supabase:", data)
+      
+      if (error) {
+        setError(`Error: ${error.message}`)
+        console.error('Error fetching providers:', error)
+      } else {
+        // Map database fields to frontend expectations and geocode addresses
+        const mappedDataPromises = (data || []).map(async (provider) => {
+          const coordinates = await geocodeAddress(provider.address)
+          
+          // Handle business_type as array or single value
+          let categories = []
+          if (Array.isArray(provider.business_type)) {
+            categories = provider.business_type
+          } else if (provider.business_type) {
+            categories = [provider.business_type]
+          } else {
+            categories = ['Other']
+          }
+          
+          return {
+            id: provider.id,
+            order: provider.order ?? null,
+            name: provider.business_name || 'Unnamed Business',
+            categories: categories, // Now an array
+            description: provider.short_summary || '',
+            bookingLink: provider.booking_link || '',
+            rating: provider.rating || null,
+            reviewCount: provider.num_reviews || 0,
+            address: provider.address || '',
+            // Use provider image or default fallback
+            image: provider.image || 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=450&fit=crop',
+            neighborhood: '',
+            city: '',
+            coordinates: coordinates,
+            bookingSystemEnabled: provider.booking_system !== false,
+            stripeAcctId: provider.stripe_acct_id || null,
+          }
+        })
+        
+        const mappedData = await Promise.all(mappedDataPromises)
+        
+        // Sort by order first (nulls last), then by id
+        mappedData.sort((a, b) => {
+          // If both have order values, sort by order
+          if (a.order !== null && b.order !== null) {
+            if (a.order !== b.order) {
+              return a.order - b.order
+            }
+          }
+          // If only one has order, prioritize it
+          if (a.order !== null && b.order === null) {
+            return -1
+          }
+          if (a.order === null && b.order !== null) {
+            return 1
+          }
+          // If both are null or same order, sort by id
+          return a.id - b.id
+        })
+        
+        console.log("Mapped data with coordinates:", mappedData)
+        setProviders(mappedData)
+        setError(null)
+      }
+    } catch (err) {
+      setError(`Failed to fetch: ${err.message}`)
+      console.error('Error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Filter listings based on search, category, and location
+  const filteredListings = useMemo(() => {
+    console.log('=== FILTERING PROVIDERS ===')
+    console.log('Total providers:', providers.length)
+    console.log('Search query:', searchQuery)
+    console.log('Selected category:', selectedCategory)
+    console.log('User location:', userLocation ? `${userLocation.address} (${userLocation.lat}, ${userLocation.lng})` : 'null')
+    
+    return providers.filter((provider) => {
+      // If search query is empty, match all
+      const matchesSearch = searchQuery === '' || 
+        provider.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        provider.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        provider.categories?.some(cat => cat.toLowerCase().includes(searchQuery.toLowerCase()))
+
+      const matchesCategory = selectedCategory === 'All' || 
+        provider.categories?.some(cat => cat.toLowerCase() === selectedCategory.toLowerCase())
+
+      const matchesBookableFilter = selectedBookableFilter === 'All' ||
+        (selectedBookableFilter === 'Bookable' && provider.bookingSystemEnabled !== false) ||
+        (selectedBookableFilter === 'LMN Only' && provider.bookingSystemEnabled === false)
+
+      // Location-based filtering
+      const matchesLocation = !userLocation || 
+        (provider.coordinates && 
+         calculateDistance(
+           userLocation.lat, 
+           userLocation.lng, 
+           provider.coordinates.lat, 
+           provider.coordinates.lng
+         ) <= RADIUS_MILES)
+
+      console.log('Provider:', provider.name, 'matchesSearch:', matchesSearch, 'matchesCategory:', matchesCategory, 'matchesBookableFilter:', matchesBookableFilter, 'matchesLocation:', matchesLocation, 'categories:', provider.categories)
+      
+      return matchesSearch && matchesCategory && matchesBookableFilter && matchesLocation
+    })
+  }, [providers, searchQuery, selectedCategory, selectedBookableFilter, userLocation])
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, selectedCategory, selectedBookableFilter, userLocation, providers.length])
+
+  const totalPages = Math.max(1, Math.ceil(filteredListings.length / ITEMS_PER_PAGE))
+  const paginatedListings = filteredListings.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  )
+
+  // Handle card click - highlight and scroll to on map
+  const handleCardClick = (id) => {
+    setHighlightedId(id)
+  }
+
+  // Handle marker click - highlight and scroll to card
+  const handleMarkerClick = (id) => {
+    setHighlightedId(id)
+    
+    // Scroll to the card
+    const element = listRefs.current[id]
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }
+
+  // Handle navigation to LMN form
+  const handleNavigateToLMN = () => {
+    navigate('/book/any-provider/lmn-form', { state: { bookingSystemEnabled: false } })
+  }
+
+  // Handle location selection
+  const handleLocationSelect = (location) => {
+    setUserLocation(location)
+  }
+
+  // Handle clearing location filter
+  const handleClearLocation = () => {
+    setUserLocation(null)
+  }
+
+  return (
+    <WellnessMarketplaceView
+      searchQuery={searchQuery}
+      onSearchChange={setSearchQuery}
+      selectedCategory={selectedCategory}
+      onCategoryChange={setSelectedCategory}
+      selectedBookableFilter={selectedBookableFilter}
+      onBookableFilterChange={setSelectedBookableFilter}
+      loading={loading}
+      error={error}
+      filteredListings={filteredListings}
+      paginatedListings={paginatedListings}
+      totalPages={totalPages}
+      currentPage={currentPage}
+      onPageChange={setCurrentPage}
+      listRefs={listRefs}
+      highlightedId={highlightedId}
+      onCardClick={handleCardClick}
+      onMarkerClick={handleMarkerClick}
+      onRetry={fetchProviders}
+      onNavigateToLMN={handleNavigateToLMN}
+      itemsPerPage={ITEMS_PER_PAGE}
+      userLocation={userLocation}
+      radiusMiles={RADIUS_MILES}
+      onLocationSelect={handleLocationSelect}
+      onClearLocation={handleClearLocation}
+    />
+  )
+}
+
