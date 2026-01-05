@@ -52,8 +52,8 @@ export default function WellnessMarketplaceView({
             onClick={onNavigateToLMN}
             className="w-full text-center text-white font-medium hover:underline transition-colors"
           >
-            <span className="mr-1">🔍</span> Don't see your provider listed?
-            Click here to get an LMN for any provider of your choice! ✨
+            <span className="mr-1">🔍</span> Save 30% on your appointment for a
+            service provider of your choice! ✨
           </button>
         </div>
       </div>

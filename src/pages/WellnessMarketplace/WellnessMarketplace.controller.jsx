@@ -1,305 +1,437 @@
-import { useState, useMemo, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { supabase } from '../../supabaseClient'
-import WellnessMarketplaceView from './WellnessMarketplace.view'
+import { useState, useMemo, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "../../supabaseClient";
+import WellnessMarketplaceView from "./WellnessMarketplace.view";
 
 export default function WellnessMarketplace() {
-  const navigate = useNavigate()
-  const [providers, setProviders] = useState([])
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState('All')
-  const [selectedBookableFilter, setSelectedBookableFilter] = useState('All')
-  const [highlightedId, setHighlightedId] = useState(undefined)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [userLocation, setUserLocation] = useState(null)
-  const listRefs = useRef({})
-  const ITEMS_PER_PAGE = 6
-  const RADIUS_MILES = 50
+  const navigate = useNavigate();
+  const [providers, setProviders] = useState([]);
+  const [googlePlacesProviders, setGooglePlacesProviders] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedBookableFilter, setSelectedBookableFilter] = useState("All");
+  const [highlightedId, setHighlightedId] = useState(undefined);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [userLocation, setUserLocation] = useState(null);
+  const listRefs = useRef({});
+  const ITEMS_PER_PAGE = 6;
+  const RADIUS_MILES = 50;
 
   // Fetch providers from Supabase
   useEffect(() => {
-    fetchProviders()
-  }, [])
+    fetchProviders();
+  }, []);
 
   // Request user's location on page load
   useEffect(() => {
     const getLocationFromIP = async () => {
       try {
-        console.log('📍 Attempting IP-based location...')
-        const response = await fetch('https://ipapi.co/json/')
-        const data = await response.json()
-        
+        console.log("📍 Attempting IP-based location...");
+        const response = await fetch("https://ipapi.co/json/");
+        const data = await response.json();
+
         if (data.latitude && data.longitude) {
           const locationData = {
             lat: data.latitude,
             lng: data.longitude,
-            address: `${data.city}, ${data.region_code}, ${data.country_name}`
-          }
-          console.log('✅ IP-based location:', locationData)
-          setUserLocation(locationData)
+            address: `${data.city}, ${data.region_code}, ${data.country_name}`,
+          };
+          console.log("✅ IP-based location:", locationData);
+          setUserLocation(locationData);
         }
       } catch (error) {
-        console.error('❌ IP-based location failed:', error)
+        console.error("❌ IP-based location failed:", error);
       }
-    }
+    };
 
-    console.log('Checking for geolocation support...')
-    if ('geolocation' in navigator) {
-      console.log('Requesting user location...')
+    console.log("Checking for geolocation support...");
+    if ("geolocation" in navigator) {
+      console.log("Requesting user location...");
       navigator.geolocation.getCurrentPosition(
         async (position) => {
-          const { latitude, longitude } = position.coords
-          console.log('✅ User coordinates received:', latitude, longitude)
-          
+          const { latitude, longitude } = position.coords;
+          console.log("✅ User coordinates received:", latitude, longitude);
+
           // Reverse geocode to get address
           try {
-            const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+            const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
             if (!apiKey) {
-              console.error('Google Maps API key not configured')
-              return
+              console.error("Google Maps API key not configured");
+              return;
             }
-            
+
             const response = await fetch(
               `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`
-            )
-            const data = await response.json()
-            
+            );
+            const data = await response.json();
+
             if (data.results && data.results.length > 0) {
-              const formattedAddress = data.results[0].formatted_address
+              const formattedAddress = data.results[0].formatted_address;
               const locationData = {
                 lat: latitude,
                 lng: longitude,
-                address: formattedAddress
-              }
-              console.log('✅ Auto-detected location:', locationData)
-              console.log('Setting user location state...')
-              setUserLocation(locationData)
-              console.log('✅ User location state updated')
+                address: formattedAddress,
+              };
+              console.log("✅ Auto-detected location:", locationData);
+              console.log("Setting user location state...");
+              setUserLocation(locationData);
+              console.log("✅ User location state updated");
             } else {
-              console.error('No reverse geocoding results found, trying IP-based location')
-              getLocationFromIP()
+              console.error(
+                "No reverse geocoding results found, trying IP-based location"
+              );
+              getLocationFromIP();
             }
           } catch (error) {
-            console.error('❌ Error reverse geocoding user location:', error)
-            getLocationFromIP()
+            console.error("❌ Error reverse geocoding user location:", error);
+            getLocationFromIP();
           }
         },
         (error) => {
-          console.log('❌ User denied location permission or error occurred:', error.message, error.code)
-          console.log('Falling back to IP-based location...')
-          getLocationFromIP()
+          console.log(
+            "❌ User denied location permission or error occurred:",
+            error.message,
+            error.code
+          );
+          console.log("Falling back to IP-based location...");
+          getLocationFromIP();
         },
         {
           enableHighAccuracy: false,
           timeout: 5000,
-          maximumAge: 0
+          maximumAge: 0,
         }
-      )
+      );
     } else {
-      console.log('❌ Geolocation is not supported by this browser, using IP-based location')
-      getLocationFromIP()
+      console.log(
+        "❌ Geolocation is not supported by this browser, using IP-based location"
+      );
+      getLocationFromIP();
     }
-  }, [])
+  }, []);
 
   // Calculate distance between two coordinates in miles using Haversine formula
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 3959 // Earth's radius in miles
-    const dLat = (lat2 - lat1) * Math.PI / 180
-    const dLon = (lon2 - lon1) * Math.PI / 180
-    const a = 
+    const R = 3959; // Earth's radius in miles
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2)
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-    return R * c
-  }
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
 
   // Geocode address to coordinates
   const geocodeAddress = async (address) => {
-    if (!address) return { lat: 40.7484, lng: -73.9857 } // Default NYC center
-    
+    if (!address) return { lat: 40.7484, lng: -73.9857 }; // Default NYC center
+
     try {
-      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
-      if (!apiKey) return { lat: 40.7484, lng: -73.9857 }
-      
+      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+      if (!apiKey) return { lat: 40.7484, lng: -73.9857 };
+
       const response = await fetch(
         `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`
-      )
-      const data = await response.json()
-      
+      );
+      const data = await response.json();
+
       if (data.results && data.results.length > 0) {
-        const location = data.results[0].geometry.location
-        return { lat: location.lat, lng: location.lng }
+        const location = data.results[0].geometry.location;
+        return { lat: location.lat, lng: location.lng };
       }
     } catch (err) {
-      console.error('Geocoding error for address:', address, err)
+      console.error("Geocoding error for address:", address, err);
     }
-    
-    return { lat: 40.7484, lng: -73.9857 } // Fallback to default
-  }
+
+    return { lat: 40.7484, lng: -73.9857 }; // Fallback to default
+  };
+
+  // Fetch Google Places nearby services
+  const fetchGooglePlaces = async (location) => {
+    try {
+      console.log("apiKey", {
+        apiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+        location,
+      });
+      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+      if (!apiKey || !location) return [];
+
+      const { lat, lng, address } = location;
+      const radiusMeters = RADIUS_MILES * 1609.34;
+      // You can filter by type, e.g. 'health', 'spa', etc. For now, use 'spa' as example
+      const type = "spa";
+      const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusMeters}&key=${apiKey}`;
+      // &type=${type}
+
+      const response = await fetch(url);
+      console.log("google_repsonse", response);
+      const data = await response.json();
+
+      if (!data.results) {
+        console.error("No places results", data);
+        return [];
+      }
+
+      const mappedPlaces = data.results.map((place) => {
+        const coordinates = {
+          lat: place.geometry?.location?.lat,
+          lng: place.geometry?.location?.lng,
+        };
+        const id = `gplace-${place.place_id}`;
+        return {
+          id,
+          order: null,
+          name: place.name || "Unnamed Place",
+          categories: place.types || ["Other"],
+          description: place.vicinity || place.formatted_address || "",
+          bookingLink:
+            place.website ||
+            (place.place_id
+              ? `https://www.google.com/maps/place/?q=place_id:${place.place_id}`
+              : ""),
+          rating: place.rating ?? null,
+          reviewCount: place.user_ratings_total ?? 0,
+          address: place.vicinity || place.formatted_address || "",
+          image:
+            "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=450&fit=crop",
+          neighborhood: "",
+          city: "",
+          coordinates,
+          bookingSystemEnabled: false,
+          stripeAcctId: null,
+          isGooglePlace: true,
+        };
+      });
+      setGooglePlacesProviders(mappedPlaces);
+      return mappedPlaces;
+    } catch (err) {
+      console.error("Error fetching Google Places", err);
+      setGooglePlacesProviders([]);
+      return [];
+    }
+  };
 
   const fetchProviders = async () => {
     try {
-      setLoading(true)
+      setLoading(true);
+      // Fetch Supabase providers
       const { data, error } = await supabase
-        .from('providers')
-        .select('*')
-        .order('id', { ascending: true })
-      
-      console.log("Raw data from Supabase:", data)
-      
+        .from("providers")
+        .select("*")
+        .order("id", { ascending: true });
+
+      // Fetch Google Places providers if userLocation is available
+      let googleData = [];
+      // if (userLocation) {
+      googleData = await fetchGooglePlaces(userLocation);
+      // }
+
+      console.log("userLocation", { userLocation, googleData });
+
       if (error) {
-        setError(`Error: ${error.message}`)
-        console.error('Error fetching providers:', error)
+        setError(`Error: ${error.message}`);
+        console.error("Error fetching providers:", error);
       } else {
         // Map database fields to frontend expectations and geocode addresses
         const mappedDataPromises = (data || []).map(async (provider) => {
-          const coordinates = await geocodeAddress(provider.address)
-          
+          const coordinates = await geocodeAddress(provider.address);
           // Handle business_type as array or single value
-          let categories = []
+          let categories = [];
           if (Array.isArray(provider.business_type)) {
-            categories = provider.business_type
+            categories = provider.business_type;
           } else if (provider.business_type) {
-            categories = [provider.business_type]
+            categories = [provider.business_type];
           } else {
-            categories = ['Other']
+            categories = ["Other"];
           }
-          
           return {
             id: provider.id,
             order: provider.order ?? null,
-            name: provider.business_name || 'Unnamed Business',
+            name: provider.business_name || "Unnamed Business",
             categories: categories, // Now an array
-            description: provider.short_summary || '',
-            bookingLink: provider.booking_link || '',
+            description: provider.short_summary || "",
+            bookingLink: provider.booking_link || "",
             rating: provider.rating || null,
             reviewCount: provider.num_reviews || 0,
-            address: provider.address || '',
+            address: provider.address || "",
             // Use provider image or default fallback
-            image: provider.image || 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=450&fit=crop',
-            neighborhood: '',
-            city: '',
+            image:
+              provider.image ||
+              "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=450&fit=crop",
+            neighborhood: "",
+            city: "",
             coordinates: coordinates,
             bookingSystemEnabled: provider.booking_system !== false,
             stripeAcctId: provider.stripe_acct_id || null,
-          }
-        })
-        
-        const mappedData = await Promise.all(mappedDataPromises)
-        
+          };
+        });
+        const mappedData = await Promise.all(mappedDataPromises);
         // Sort by order first (nulls last), then by id
         mappedData.sort((a, b) => {
-          // If both have order values, sort by order
           if (a.order !== null && b.order !== null) {
             if (a.order !== b.order) {
-              return a.order - b.order
+              return a.order - b.order;
             }
           }
-          // If only one has order, prioritize it
           if (a.order !== null && b.order === null) {
-            return -1
+            return -1;
           }
           if (a.order === null && b.order !== null) {
-            return 1
+            return 1;
           }
-          // If both are null or same order, sort by id
-          return a.id - b.id
-        })
-        
-        console.log("Mapped data with coordinates:", mappedData)
-        setProviders(mappedData)
-        setError(null)
+          return a.id - b.id;
+        });
+        // Append Google Places providers
+        const allProviders = [...mappedData, ...googleData];
+        console.log(
+          "Mapped data with coordinates and Google Places:",
+          allProviders
+        );
+        setProviders(allProviders);
+        setError(null);
       }
     } catch (err) {
-      setError(`Failed to fetch: ${err.message}`)
-      console.error('Error:', err)
+      setError(`Failed to fetch: ${err.message}`);
+      console.error("Error:", err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   // Filter listings based on search, category, and location
   const filteredListings = useMemo(() => {
-    console.log('=== FILTERING PROVIDERS ===')
-    console.log('Total providers:', providers.length)
-    console.log('Search query:', searchQuery)
-    console.log('Selected category:', selectedCategory)
-    console.log('User location:', userLocation ? `${userLocation.address} (${userLocation.lat}, ${userLocation.lng})` : 'null')
-    
+    console.log("=== FILTERING PROVIDERS ===");
+    console.log("Total providers:", providers.length);
+    console.log("Search query:", searchQuery);
+    console.log("Selected category:", selectedCategory);
+    console.log(
+      "User location:",
+      userLocation
+        ? `${userLocation.address} (${userLocation.lat}, ${userLocation.lng})`
+        : "null"
+    );
+
     return providers.filter((provider) => {
       // If search query is empty, match all
-      const matchesSearch = searchQuery === '' || 
+      const matchesSearch =
+        searchQuery === "" ||
         provider.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         provider.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        provider.categories?.some(cat => cat.toLowerCase().includes(searchQuery.toLowerCase()))
+        provider.categories?.some((cat) =>
+          cat.toLowerCase().includes(searchQuery.toLowerCase())
+        );
 
-      const matchesCategory = selectedCategory === 'All' || 
-        provider.categories?.some(cat => cat.toLowerCase() === selectedCategory.toLowerCase())
+      const matchesCategory =
+        selectedCategory === "All" ||
+        provider.categories?.some(
+          (cat) => cat.toLowerCase() === selectedCategory.toLowerCase()
+        );
 
-      const matchesBookableFilter = selectedBookableFilter === 'All' ||
-        (selectedBookableFilter === 'Bookable' && provider.bookingSystemEnabled !== false) ||
-        (selectedBookableFilter === 'LMN Only' && provider.bookingSystemEnabled === false)
+      const matchesBookableFilter =
+        selectedBookableFilter === "All" ||
+        (selectedBookableFilter === "Bookable" &&
+          provider.bookingSystemEnabled !== false) ||
+        (selectedBookableFilter === "LMN Only" &&
+          provider.bookingSystemEnabled === false);
 
       // Location-based filtering
-      const matchesLocation = !userLocation || 
-        (provider.coordinates && 
-         calculateDistance(
-           userLocation.lat, 
-           userLocation.lng, 
-           provider.coordinates.lat, 
-           provider.coordinates.lng
-         ) <= RADIUS_MILES)
+      const matchesLocation =
+        !userLocation ||
+        (provider.coordinates &&
+          calculateDistance(
+            userLocation.lat,
+            userLocation.lng,
+            provider.coordinates.lat,
+            provider.coordinates.lng
+          ) <= RADIUS_MILES);
 
-      console.log('Provider:', provider.name, 'matchesSearch:', matchesSearch, 'matchesCategory:', matchesCategory, 'matchesBookableFilter:', matchesBookableFilter, 'matchesLocation:', matchesLocation, 'categories:', provider.categories)
-      
-      return matchesSearch && matchesCategory && matchesBookableFilter && matchesLocation
-    })
-  }, [providers, searchQuery, selectedCategory, selectedBookableFilter, userLocation])
+      console.log(
+        "Provider:",
+        provider.name,
+        "matchesSearch:",
+        matchesSearch,
+        "matchesCategory:",
+        matchesCategory,
+        "matchesBookableFilter:",
+        matchesBookableFilter,
+        "matchesLocation:",
+        matchesLocation,
+        "categories:",
+        provider.categories
+      );
+
+      return (
+        matchesSearch &&
+        matchesCategory &&
+        matchesBookableFilter &&
+        matchesLocation
+      );
+    });
+  }, [
+    providers,
+    searchQuery,
+    selectedCategory,
+    selectedBookableFilter,
+    userLocation,
+  ]);
 
   // Reset to first page when filters change
   useEffect(() => {
-    setCurrentPage(1)
-  }, [searchQuery, selectedCategory, selectedBookableFilter, userLocation, providers.length])
+    setCurrentPage(1);
+  }, [
+    searchQuery,
+    selectedCategory,
+    selectedBookableFilter,
+    userLocation,
+    providers.length,
+  ]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredListings.length / ITEMS_PER_PAGE))
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredListings.length / ITEMS_PER_PAGE)
+  );
   const paginatedListings = filteredListings.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
-  )
+  );
 
   // Handle card click - highlight and scroll to on map
   const handleCardClick = (id) => {
-    setHighlightedId(id)
-  }
+    setHighlightedId(id);
+  };
 
   // Handle marker click - highlight and scroll to card
   const handleMarkerClick = (id) => {
-    setHighlightedId(id)
-    
+    setHighlightedId(id);
+
     // Scroll to the card
-    const element = listRefs.current[id]
+    const element = listRefs.current[id];
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
     }
-  }
+  };
 
   // Handle navigation to LMN form
   const handleNavigateToLMN = () => {
-    navigate('/book/any-provider/lmn-form', { state: { bookingSystemEnabled: false } })
-  }
+    navigate("/book/any-provider/lmn-form", {
+      state: { bookingSystemEnabled: false },
+    });
+  };
 
   // Handle location selection
   const handleLocationSelect = (location) => {
-    setUserLocation(location)
-  }
+    setUserLocation(location);
+  };
 
   // Handle clearing location filter
   const handleClearLocation = () => {
-    setUserLocation(null)
-  }
+    setUserLocation(null);
+  };
 
   return (
     <WellnessMarketplaceView
@@ -328,6 +460,5 @@ export default function WellnessMarketplace() {
       onLocationSelect={handleLocationSelect}
       onClearLocation={handleClearLocation}
     />
-  )
+  );
 }
-

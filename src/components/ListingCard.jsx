@@ -90,7 +90,7 @@ export default function ListingCard({ listing, isHighlighted, onClick }) {
         </div>
 
         {listing.categories && listing.categories.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 justify-end">
+          <div className="flex flex-wrap gap-1.5 justify-start mb-2">
             {listing.categories.map((category, index) => (
               <span
                 key={index}
