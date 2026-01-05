@@ -64,7 +64,7 @@ export default function LocationSearch({ onLocationSelect, userLocation, onClear
           </div>
         ) : (
           <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1">
+            <div className="flex-1 relative">
               <input
                 type="text"
                 value={input}
@@ -74,6 +74,19 @@ export default function LocationSearch({ onLocationSelect, userLocation, onClear
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                 disabled={isLoading}
               />
+              {input.trim() && (
+                <div
+                  className="absolute left-0 right-0 mt-2 bg-white border rounded-lg shadow-lg z-10 cursor-pointer"
+                  onClick={handleSearch}
+                  style={{ minWidth: '200px' }}
+                >
+                  <div className="flex items-center px-4 py-2 hover:bg-emerald-50">
+                    <span className="mr-2 text-pink-500">📍</span>
+                    <span className="font-medium">Search for "{input}"</span>
+                  </div>
+                  <div className="px-4 pb-2 text-xs text-gray-500">Set as location</div>
+                </div>
+              )}
             </div>
             <button
               onClick={handleSearch}

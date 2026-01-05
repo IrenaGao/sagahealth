@@ -19,10 +19,10 @@ export default function WellnessMarketplace() {
   const ITEMS_PER_PAGE = 6;
   const RADIUS_MILES = 50;
 
-  // Fetch providers from Supabase
+  // Fetch providers from Supabase and Google Places when userLocation changes
   useEffect(() => {
     fetchProviders();
-  }, []);
+  }, [userLocation]);
 
   // Request user's location on page load
   useEffect(() => {
@@ -161,10 +161,10 @@ export default function WellnessMarketplace() {
       const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
       if (!apiKey || !location) return [];
 
-      const { lat, lng, address } = location;
+      const { lat, lng } = location;
       const radiusMeters = RADIUS_MILES * 1609.34;
       // You can filter by type, e.g. 'health', 'spa', etc. For now, use 'spa' as example
-      const type = "spa";
+      // const type = "spa";
       const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusMeters}&key=${apiKey}`;
       // &type=${type}
 

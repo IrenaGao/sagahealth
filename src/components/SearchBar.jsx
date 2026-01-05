@@ -94,25 +94,31 @@ export default function SearchBar({
     }
   }
 
+  const handleSearch = () => {
+    if (!searchQuery.trim()) return
+    
+    // Check if it matches a category first
+    const matchedCategory = categories.find(cat => 
+      cat.toLowerCase() === searchQuery.toLowerCase()
+    )
+    
+    if (matchedCategory && matchedCategory !== 'All') {
+      console.log('Matched category:', matchedCategory)
+      onCategoryChange(matchedCategory)
+      onSearchChange('')
+      setShowSuggestions(false)
+    } else {
+      // Treat as location
+      console.log('Treating as location search')
+      const query = searchQuery
+      onSearchChange('') // Clear search before location search
+      handleLocationSearch(query)
+    }
+  }
+
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && searchQuery.trim()) {
-      // Check if it matches a category first
-      const matchedCategory = categories.find(cat => 
-        cat.toLowerCase() === searchQuery.toLowerCase()
-      )
-      
-      if (matchedCategory && matchedCategory !== 'All') {
-        console.log('Matched category:', matchedCategory)
-        onCategoryChange(matchedCategory)
-        onSearchChange('')
-        setShowSuggestions(false)
-      } else {
-        // Treat as location
-        console.log('Treating as location search')
-        const query = searchQuery
-        onSearchChange('') // Clear search before location search
-        handleLocationSearch(query)
-      }
+      handleSearch()
     } else if (e.key === 'Escape') {
       setShowSuggestions(false)
     }
@@ -142,11 +148,11 @@ export default function SearchBar({
                 onFocus={() => searchQuery && setShowSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                 disabled={isLoadingLocation}
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900 placeholder-gray-500"
+                className="w-full px-4 py-3 pr-32 rounded-xl text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900 placeholder-gray-500"
               />
               
               {/* Suggestions Dropdown */}
-              {showSuggestions && suggestions.length > 0 && (
+              {/* {showSuggestions && suggestions.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto">
                   {suggestions.map((suggestion, index) => (
                     <button
@@ -174,9 +180,9 @@ export default function SearchBar({
                     </button>
                   ))}
                 </div>
-              )}
+              )} */}
               
-              {/* Active Filters Display */}
+              {/* Active Filters Display and Search Icon */}
               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
                 {selectedCategory !== 'All' && (
                   <div className="flex items-center gap-1 bg-emerald-100 px-2 py-1 rounded-lg">
@@ -200,6 +206,27 @@ export default function SearchBar({
                     </button>
                   </div>
                 )}
+                {/* Search Icon Button */}
+                <button
+                  onClick={handleSearch}
+                  disabled={!searchQuery.trim() || isLoadingLocation}
+                  className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Search"
+                >
+                  <svg 
+                    className="w-5 h-5 text-gray-600" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" 
+                    />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
