@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import WellnessMarketplaceView from "./WellnessMarketplace.view";
+import { LoadScript } from "@react-google-maps/api";
 
 export default function WellnessMarketplace() {
   const navigate = useNavigate();
@@ -151,64 +152,66 @@ export default function WellnessMarketplace() {
     return { lat: 40.7484, lng: -73.9857 }; // Fallback to default
   };
 
-  // Fetch Google Places nearby services
+  // Fetch Google Places nearby services using Places Service API
   const fetchGooglePlaces = async (location) => {
     try {
-      console.log("apiKey", {
-        apiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-        location,
-      });
-      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-      if (!apiKey || !location) return [];
+      if (!location || !window.google?.maps?.places) return [];
 
       const { lat, lng } = location;
-      const radiusMeters = RADIUS_MILES * 1609.34;
-      // You can filter by type, e.g. 'health', 'spa', etc. For now, use 'spa' as example
-      // const type = "spa";
-      const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusMeters}&key=${apiKey}`;
-      // &type=${type}
 
-      const response = await fetch(url);
-      console.log("google_repsonse", response);
-      const data = await response.json();
+      // Create a PlacesService instance
+      const service = new window.google.maps.places.PlacesService(
+        document.createElement("div")
+      );
 
-      if (!data.results) {
-        console.error("No places results", data);
-        return [];
-      }
+      const request = {
+        location: new window.google.maps.LatLng(lat, lng),
+        radius: RADIUS_MILES * 1609.34, // Convert miles to meters
+        // type: "health", // Can be customized: 'spa', 'gym', etc.
+      };
 
-      const mappedPlaces = data.results.map((place) => {
-        const coordinates = {
-          lat: place.geometry?.location?.lat,
-          lng: place.geometry?.location?.lng,
-        };
-        const id = `gplace-${place.place_id}`;
-        return {
-          id,
-          order: null,
-          name: place.name || "Unnamed Place",
-          categories: place.types || ["Other"],
-          description: place.vicinity || place.formatted_address || "",
-          bookingLink:
-            place.website ||
-            (place.place_id
-              ? `https://www.google.com/maps/place/?q=place_id:${place.place_id}`
-              : ""),
-          rating: place.rating ?? null,
-          reviewCount: place.user_ratings_total ?? 0,
-          address: place.vicinity || place.formatted_address || "",
-          image:
-            "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=450&fit=crop",
-          neighborhood: "",
-          city: "",
-          coordinates,
-          bookingSystemEnabled: false,
-          stripeAcctId: null,
-          isGooglePlace: true,
-        };
+      return new Promise((resolve) => {
+        service.nearbySearch(request, (results, status) => {
+          if (
+            status === window.google.maps.places.PlacesServiceStatus.OK &&
+            results
+          ) {
+            const mappedPlaces = results.map((place) => {
+              const coordinates = {
+                lat: place.geometry?.location?.lat(),
+                lng: place.geometry?.location?.lng(),
+              };
+              const id = `gplace-${place.place_id}`;
+              return {
+                id,
+                order: null,
+                name: place.name || "Unnamed Place",
+                categories: place.types || ["Other"],
+                description: place.vicinity || "",
+                bookingLink: place.place_id
+                  ? `https://www.google.com/maps/place/?q=place_id:${place.place_id}`
+                  : "",
+                rating: place.rating ?? null,
+                reviewCount: place.user_ratings_total ?? 0,
+                address: place.vicinity || "",
+                image:
+                  "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=450&fit=crop",
+                neighborhood: "",
+                city: "",
+                coordinates,
+                bookingSystemEnabled: false,
+                stripeAcctId: null,
+                isGooglePlace: true,
+              };
+            });
+            setGooglePlacesProviders(mappedPlaces);
+            resolve(mappedPlaces);
+          } else {
+            console.error("Places search failed:", status);
+            resolve([]);
+          }
+        });
       });
-      setGooglePlacesProviders(mappedPlaces);
-      return mappedPlaces;
     } catch (err) {
       console.error("Error fetching Google Places", err);
       setGooglePlacesProviders([]);
@@ -303,11 +306,10 @@ export default function WellnessMarketplace() {
     }
   };
 
-  // Filter listings based on search, category, and location
+  // Filter listings based on category and location
   const filteredListings = useMemo(() => {
     console.log("=== FILTERING PROVIDERS ===");
     console.log("Total providers:", providers.length);
-    console.log("Search query:", searchQuery);
     console.log("Selected category:", selectedCategory);
     console.log(
       "User location:",
@@ -317,15 +319,6 @@ export default function WellnessMarketplace() {
     );
 
     return providers.filter((provider) => {
-      // If search query is empty, match all
-      const matchesSearch =
-        searchQuery === "" ||
-        provider.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        provider.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        provider.categories?.some((cat) =>
-          cat.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-
       const matchesCategory =
         selectedCategory === "All" ||
         provider.categories?.some(
@@ -353,8 +346,6 @@ export default function WellnessMarketplace() {
       console.log(
         "Provider:",
         provider.name,
-        "matchesSearch:",
-        matchesSearch,
         "matchesCategory:",
         matchesCategory,
         "matchesBookableFilter:",
@@ -365,26 +356,14 @@ export default function WellnessMarketplace() {
         provider.categories
       );
 
-      return (
-        matchesSearch &&
-        matchesCategory &&
-        matchesBookableFilter &&
-        matchesLocation
-      );
+      return matchesCategory && matchesBookableFilter && matchesLocation;
     });
-  }, [
-    providers,
-    searchQuery,
-    selectedCategory,
-    selectedBookableFilter,
-    userLocation,
-  ]);
+  }, [providers, selectedCategory, selectedBookableFilter, userLocation]);
 
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [
-    searchQuery,
     selectedCategory,
     selectedBookableFilter,
     userLocation,
@@ -434,31 +413,38 @@ export default function WellnessMarketplace() {
   };
 
   return (
-    <WellnessMarketplaceView
-      searchQuery={searchQuery}
-      onSearchChange={setSearchQuery}
-      selectedCategory={selectedCategory}
-      onCategoryChange={setSelectedCategory}
-      selectedBookableFilter={selectedBookableFilter}
-      onBookableFilterChange={setSelectedBookableFilter}
-      loading={loading}
-      error={error}
-      filteredListings={filteredListings}
-      paginatedListings={paginatedListings}
-      totalPages={totalPages}
-      currentPage={currentPage}
-      onPageChange={setCurrentPage}
-      listRefs={listRefs}
-      highlightedId={highlightedId}
-      onCardClick={handleCardClick}
-      onMarkerClick={handleMarkerClick}
-      onRetry={fetchProviders}
-      onNavigateToLMN={handleNavigateToLMN}
-      itemsPerPage={ITEMS_PER_PAGE}
-      userLocation={userLocation}
-      radiusMiles={RADIUS_MILES}
-      onLocationSelect={handleLocationSelect}
-      onClearLocation={handleClearLocation}
-    />
+    // <LoadScript
+    //   googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}
+    //   libraries={["places", "geocoding"]}
+    //   loadingElement={<div>Loading...</div>}
+    //   preventGoogleFontsLoading={true}
+    // >
+      <WellnessMarketplaceView
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        selectedCategory={selectedCategory}
+        onCategoryChange={setSelectedCategory}
+        selectedBookableFilter={selectedBookableFilter}
+        onBookableFilterChange={setSelectedBookableFilter}
+        loading={loading}
+        error={error}
+        filteredListings={filteredListings}
+        paginatedListings={paginatedListings}
+        totalPages={totalPages}
+        currentPage={currentPage}
+        onPageChange={setCurrentPage}
+        listRefs={listRefs}
+        highlightedId={highlightedId}
+        onCardClick={handleCardClick}
+        onMarkerClick={handleMarkerClick}
+        onRetry={fetchProviders}
+        onNavigateToLMN={handleNavigateToLMN}
+        itemsPerPage={ITEMS_PER_PAGE}
+        userLocation={userLocation}
+        radiusMiles={RADIUS_MILES}
+        onLocationSelect={handleLocationSelect}
+        onClearLocation={handleClearLocation}
+      />
+    //  </LoadScript>
   );
 }

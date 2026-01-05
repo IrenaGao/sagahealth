@@ -108,7 +108,7 @@ export default function SearchBar({
       onSearchChange('')
       setShowSuggestions(false)
     } else {
-      // Treat as location
+      // Treat as location search
       console.log('Treating as location search')
       const query = searchQuery
       onSearchChange('') // Clear search before location search
