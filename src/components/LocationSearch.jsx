@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { geocodeAddress } from '../utils/googleGeocoding'
 
 export default function LocationSearch({ onLocationSelect, userLocation, onClear }) {
   const [input, setInput] = useState('')
@@ -15,18 +16,13 @@ export default function LocationSearch({ onLocationSelect, userLocation, onClear
         return
       }
 
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(input)}&key=${apiKey}`
-      )
-      const data = await response.json()
+      const result = await geocodeAddress({ apiKey, address: input })
 
-      if (data.results && data.results.length > 0) {
-        const location = data.results[0].geometry.location
-        const formattedAddress = data.results[0].formatted_address
+      if (result?.lat && result?.lng) {
         onLocationSelect({
-          lat: location.lat,
-          lng: location.lng,
-          address: formattedAddress
+          lat: result.lat,
+          lng: result.lng,
+          address: result.formattedAddress || input,
         })
         setInput('')
       } else {

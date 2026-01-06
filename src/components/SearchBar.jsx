@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { geocodeAddress } from '../utils/googleGeocoding'
 
 const categories = ['All', 'Gym', 'Massage', 'Yoga'];
 
@@ -67,18 +68,13 @@ export default function SearchBar({
         return
       }
 
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(locationQuery)}&key=${apiKey}`
-      )
-      const data = await response.json()
+      const result = await geocodeAddress({ apiKey, address: locationQuery })
 
-      if (data.results && data.results.length > 0) {
-        const location = data.results[0].geometry.location
-        const formattedAddress = data.results[0].formatted_address
+      if (result?.lat && result?.lng) {
         const locationData = {
-          lat: location.lat,
-          lng: location.lng,
-          address: formattedAddress
+          lat: result.lat,
+          lng: result.lng,
+          address: result.formattedAddress || locationQuery,
         }
         console.log('Location found, calling onLocationSelect:', locationData)
         onLocationSelect(locationData)

@@ -2,7 +2,12 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import WellnessMarketplaceView from "./WellnessMarketplace.view";
-import { LoadScript } from "@react-google-maps/api";
+import { loadGoogleMaps } from "../../utils/googleMapsLoader";
+import {
+  geocodeAddress as geocodeAddressWithMaps,
+  reverseGeocode,
+} from "../../utils/googleGeocoding";
+import { API_URL } from "../../config";
 
 export default function WellnessMarketplace() {
   const navigate = useNavigate();
@@ -19,6 +24,7 @@ export default function WellnessMarketplace() {
   const listRefs = useRef({});
   const ITEMS_PER_PAGE = 6;
   const RADIUS_MILES = 50;
+  const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   // Fetch providers from Supabase and Google Places when userLocation changes
   useEffect(() => {
@@ -63,13 +69,13 @@ export default function WellnessMarketplace() {
               return;
             }
 
-            const response = await fetch(
-              `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`
-            );
-            const data = await response.json();
+            const formattedAddress = await reverseGeocode({
+              apiKey,
+              lat: latitude,
+              lng: longitude,
+            });
 
-            if (data.results && data.results.length > 0) {
-              const formattedAddress = data.results[0].formatted_address;
+            if (formattedAddress) {
               const locationData = {
                 lat: latitude,
                 lng: longitude,
@@ -113,6 +119,15 @@ export default function WellnessMarketplace() {
     }
   }, []);
 
+  // Load Google Maps JS (non-blocking; UI renders immediately)
+  useEffect(() => {
+    loadGoogleMaps({ apiKey: googleMapsApiKey, libraries: ["places"] }).catch(
+      (e) => {
+        console.error("Failed to load Google Maps JS:", e);
+      }
+    );
+  }, [googleMapsApiKey]);
+
   // Calculate distance between two coordinates in miles using Haversine formula
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const R = 3959; // Earth's radius in miles
@@ -136,15 +151,8 @@ export default function WellnessMarketplace() {
       const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
       if (!apiKey) return { lat: 40.7484, lng: -73.9857 };
 
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`
-      );
-      const data = await response.json();
-
-      if (data.results && data.results.length > 0) {
-        const location = data.results[0].geometry.location;
-        return { lat: location.lat, lng: location.lng };
-      }
+      const result = await geocodeAddressWithMaps({ apiKey, address });
+      return { lat: result.lat, lng: result.lng };
     } catch (err) {
       console.error("Geocoding error for address:", address, err);
     }
@@ -155,7 +163,16 @@ export default function WellnessMarketplace() {
   // Fetch Google Places nearby services using Places Service API
   const fetchGooglePlaces = async (location) => {
     try {
-      if (!location || !window.google?.maps?.places) return [];
+      if (!location) return [];
+
+      try {
+        await loadGoogleMaps({ apiKey: googleMapsApiKey, libraries: ["places"] });
+      } catch (e) {
+        console.warn("Google Maps not loaded yet; skipping Places.", e);
+        return [];
+      }
+
+      if (!window.google?.maps?.places) return [];
 
       const { lat, lng } = location;
 
@@ -413,13 +430,7 @@ export default function WellnessMarketplace() {
   };
 
   return (
-    // <LoadScript
-    //   googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}
-    //   libraries={["places", "geocoding"]}
-    //   loadingElement={<div>Loading...</div>}
-    //   preventGoogleFontsLoading={true}
-    // >
-      <WellnessMarketplaceView
+    <WellnessMarketplaceView
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         selectedCategory={selectedCategory}
@@ -445,6 +456,5 @@ export default function WellnessMarketplace() {
         onLocationSelect={handleLocationSelect}
         onClearLocation={handleClearLocation}
       />
-    //  </LoadScript>
   );
 }

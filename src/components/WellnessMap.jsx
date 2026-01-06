@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, Marker, InfoWindow } from '@react-google-maps/api';
+import { loadGoogleMaps } from '../utils/googleMapsLoader';
 
 const mapContainerStyle = {
   width: '100%',
@@ -30,12 +31,41 @@ export default function WellnessMap({ listings, highlightedId, onMarkerClick, us
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const [selectedMarker, setSelectedMarker] = useState(null);
   const [mapCenter, setMapCenter] = useState(defaultCenter);
-  
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: apiKey || '',
-  });
+
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(null);
 
   const mapRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!apiKey) {
+      setIsLoaded(false);
+      setLoadError(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    loadGoogleMaps({ apiKey, libraries: ["places"] })
+      .then(() => {
+        if (!cancelled) {
+          setIsLoaded(true);
+          setLoadError(null);
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setIsLoaded(false);
+          setLoadError(e);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiKey]);
 
   // Update center when userLocation changes
   useEffect(() => {
