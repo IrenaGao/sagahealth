@@ -2,6 +2,8 @@ import ListingCard from "../../components/ListingCard";
 import WellnessMap from "../../components/WellnessMap";
 import SearchBar from "../../components/SearchBar";
 import Loader from "../../components/Loader";
+import Navbar from "../../components/Navbar/Navbar.controller.jsx";
+import Filters from "../../components/Filters/Filters.controller.jsx";
 
 export default function WellnessMarketplaceView({
   searchQuery,
@@ -13,6 +15,7 @@ export default function WellnessMarketplaceView({
   loading,
   error,
   radiusMiles,
+  onRadiusChange,
   filteredListings,
   paginatedListings,
   totalPages,
@@ -32,6 +35,19 @@ export default function WellnessMarketplaceView({
   console.log("paginatedListings:", paginatedListings);
   return (
     <div className="h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-50 overflow-hidden">
+      {/* Navbar */}
+      <Navbar 
+        onLogoClick={() => window.location.reload()}
+        rightContent={
+          <button
+            className="px-6 py-2 bg-emerald-500 text-white font-medium rounded-xl shadow-md hover:bg-emerald-600 transition-colors"
+            onClick={() => window.open('https://mysagahealth.com', '_blank')}
+          >
+            Learn More
+          </button>
+        }
+      />
+
       {/* Search Bar */}
       <SearchBar
         searchQuery={searchQuery}
@@ -44,6 +60,17 @@ export default function WellnessMarketplaceView({
         onLocationSelect={onLocationSelect}
         onClearLocation={onClearLocation}
       />
+
+      {/* Filters */}
+      {/* <Filters
+        selectedCategory={selectedCategory}
+        onCategoryChange={onCategoryChange}
+        selectedBookableFilter={selectedBookableFilter}
+        onBookableFilterChange={onBookableFilterChange}
+        selectedRadius={radiusMiles}
+        onRadiusChange={onRadiusChange}
+        hasLocation={!!userLocation}
+      /> */}
 
       {/* LMN Button Banner */}
       <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 border-b border-emerald-600">
@@ -119,11 +146,6 @@ export default function WellnessMarketplaceView({
                       </span>
                     )}
                   </div>
-                  {/* {totalPages > 1 && (
-                    <span>
-                      Page {currentPage} of {totalPages}
-                    </span>
-                  )} */}
                 </div>
                 {paginatedListings.map((listing) => (
                   <div

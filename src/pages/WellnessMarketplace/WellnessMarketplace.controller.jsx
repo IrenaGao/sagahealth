@@ -23,7 +23,7 @@ export default function WellnessMarketplace() {
   const [userLocation, setUserLocation] = useState(null);
   const listRefs = useRef({});
   const ITEMS_PER_PAGE = 6;
-  const RADIUS_MILES = 50;
+  const [radiusMiles, setRadiusMiles] = useState(50);
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   // Fetch providers from Supabase and Google Places when userLocation changes
@@ -183,7 +183,7 @@ export default function WellnessMarketplace() {
 
       const request = {
         location: new window.google.maps.LatLng(lat, lng),
-        radius: RADIUS_MILES * 1609.34, // Convert miles to meters
+        radius: radiusMiles * 1609.34, // Convert miles to meters
         // type: "health", // Can be customized: 'spa', 'gym', etc.
       };
 
@@ -358,7 +358,7 @@ export default function WellnessMarketplace() {
             userLocation.lng,
             provider.coordinates.lat,
             provider.coordinates.lng
-          ) <= RADIUS_MILES);
+          ) <= radiusMiles);
 
       console.log(
         "Provider:",
@@ -452,7 +452,8 @@ export default function WellnessMarketplace() {
         onNavigateToLMN={handleNavigateToLMN}
         itemsPerPage={ITEMS_PER_PAGE}
         userLocation={userLocation}
-        radiusMiles={RADIUS_MILES}
+        radiusMiles={radiusMiles}
+        onRadiusChange={setRadiusMiles}
         onLocationSelect={handleLocationSelect}
         onClearLocation={handleClearLocation}
       />

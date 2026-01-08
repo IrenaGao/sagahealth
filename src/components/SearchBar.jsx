@@ -124,14 +124,6 @@ export default function SearchBar({
       <div className="max-w-[1920px] mx-auto px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 pt-6 pb-4">
         {/* Logo and Search Input Row */}
         <div className="flex items-center gap-6 md:gap-8 mb-4">
-          {/* Logo */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">S</span>
-            </div>
-            <h1 className="text-xl font-bold text-gray-900 hidden sm:block">Saga Health</h1>
-          </div>
-          
           {/* Search Input */}
           <div className="flex-1 flex gap-3">
             <div className="flex-1 relative">
@@ -226,16 +218,6 @@ export default function SearchBar({
               </div>
             </div>
           </div>
-
-          {/* Link to Main Site */}
-          <a
-            href="https://mysagahealth.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-shrink-0 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg transition-colors whitespace-nowrap"
-          >
-            Learn More
-          </a>
         </div>
         
         {/* Category Chips - Aligned with search bar */}

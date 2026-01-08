@@ -12,3 +12,12 @@ export const capitalizeWords = (str) => {
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')
 }
+
+export const buildIlikePattern = (input) => {
+  if (!input) return '';
+  const decoded = decodeURIComponent(input);
+  const normalized = decoded
+    .replace(/[_-]+/g, '%')
+    .replace(/%+/g, '%');
+  return `%${normalized}%`;
+};

@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import WellnessMarketplace from './pages/WellnessMarketplace/WellnessMarketplace.controller'
-import ServiceDetails from './pages/ServiceDetails'
+import ServiceDetails from './pages/ServiceDetails/ServiceDetails.controller'
 import BookingPage from './pages/BookingPage'
 import EmbeddedBooking from './pages/EmbeddedBooking'
 import LMNForm from './pages/LMNForm'
