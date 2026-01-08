@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import WellnessMarketplaceView from "./WellnessMarketplace.view";
+import { useFilterStore } from "../../components/Filters/filterStore";
 import { loadGoogleMaps } from "../../utils/googleMapsLoader";
 import {
   geocodeAddress as geocodeAddressWithMaps,
@@ -13,17 +14,23 @@ export default function WellnessMarketplace() {
   const navigate = useNavigate();
   const [providers, setProviders] = useState([]);
   const [googlePlacesProviders, setGooglePlacesProviders] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [selectedBookableFilter, setSelectedBookableFilter] = useState("All");
   const [highlightedId, setHighlightedId] = useState(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [userLocation, setUserLocation] = useState(null);
   const listRefs = useRef({});
   const ITEMS_PER_PAGE = 6;
-  const [radiusMiles, setRadiusMiles] = useState(50);
+  
+  // Get filter values from Zustand store
+  const searchQuery = useFilterStore((state) => state.searchQuery);
+  const setSearchQuery = useFilterStore((state) => state.setSearchQuery);
+  const filters = useFilterStore((state) => state.filters);
+  const userLocation = useFilterStore((state) => state.userLocation);
+  const setUserLocation = useFilterStore((state) => state.setUserLocation);
+  
+  const selectedCategory = filters.category;
+  const selectedBookableFilter = filters.bookableFilter;
+  const radiusMiles = filters.radius;
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   // Fetch providers from Supabase and Google Places when userLocation changes
@@ -328,6 +335,7 @@ export default function WellnessMarketplace() {
     console.log("=== FILTERING PROVIDERS ===");
     console.log("Total providers:", providers.length);
     console.log("Selected category:", selectedCategory);
+    console.log("Selected bookable filter:", selectedBookableFilter);
     console.log(
       "User location:",
       userLocation
@@ -337,16 +345,16 @@ export default function WellnessMarketplace() {
 
     return providers.filter((provider) => {
       const matchesCategory =
-        selectedCategory === "All" ||
+        selectedCategory === "all" ||
         provider.categories?.some(
           (cat) => cat.toLowerCase() === selectedCategory.toLowerCase()
         );
 
       const matchesBookableFilter =
-        selectedBookableFilter === "All" ||
-        (selectedBookableFilter === "Bookable" &&
+        selectedBookableFilter === "all" ||
+        (selectedBookableFilter === "bookable" &&
           provider.bookingSystemEnabled !== false) ||
-        (selectedBookableFilter === "LMN Only" &&
+        (selectedBookableFilter === "non-bookable" &&
           provider.bookingSystemEnabled === false);
 
       // Location-based filtering
@@ -360,22 +368,9 @@ export default function WellnessMarketplace() {
             provider.coordinates.lng
           ) <= radiusMiles);
 
-      console.log(
-        "Provider:",
-        provider.name,
-        "matchesCategory:",
-        matchesCategory,
-        "matchesBookableFilter:",
-        matchesBookableFilter,
-        "matchesLocation:",
-        matchesLocation,
-        "categories:",
-        provider.categories
-      );
-
       return matchesCategory && matchesBookableFilter && matchesLocation;
     });
-  }, [providers, selectedCategory, selectedBookableFilter, userLocation]);
+  }, [providers, selectedCategory, selectedBookableFilter, userLocation, radiusMiles]);
 
   // Reset to first page when filters change
   useEffect(() => {
@@ -419,24 +414,8 @@ export default function WellnessMarketplace() {
     });
   };
 
-  // Handle location selection
-  const handleLocationSelect = (location) => {
-    setUserLocation(location);
-  };
-
-  // Handle clearing location filter
-  const handleClearLocation = () => {
-    setUserLocation(null);
-  };
-
   return (
     <WellnessMarketplaceView
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        selectedCategory={selectedCategory}
-        onCategoryChange={setSelectedCategory}
-        selectedBookableFilter={selectedBookableFilter}
-        onBookableFilterChange={setSelectedBookableFilter}
         loading={loading}
         error={error}
         filteredListings={filteredListings}
@@ -451,11 +430,6 @@ export default function WellnessMarketplace() {
         onRetry={fetchProviders}
         onNavigateToLMN={handleNavigateToLMN}
         itemsPerPage={ITEMS_PER_PAGE}
-        userLocation={userLocation}
-        radiusMiles={radiusMiles}
-        onRadiusChange={setRadiusMiles}
-        onLocationSelect={handleLocationSelect}
-        onClearLocation={handleClearLocation}
       />
   );
 }

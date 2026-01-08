@@ -4,18 +4,11 @@ import SearchBar from "../../components/SearchBar";
 import Loader from "../../components/Loader";
 import Navbar from "../../components/Navbar/Navbar.controller.jsx";
 import Filters from "../../components/Filters/Filters.controller.jsx";
+import { useFilterStore } from "../../components/Filters/filterStore";
 
 export default function WellnessMarketplaceView({
-  searchQuery,
-  onSearchChange,
-  selectedCategory,
-  onCategoryChange,
-  selectedBookableFilter,
-  onBookableFilterChange,
   loading,
   error,
-  radiusMiles,
-  onRadiusChange,
   filteredListings,
   paginatedListings,
   totalPages,
@@ -28,20 +21,21 @@ export default function WellnessMarketplaceView({
   onRetry,
   onNavigateToLMN,
   itemsPerPage,
-  userLocation,
-  onLocationSelect,
-  onClearLocation,
 }) {
+  // Get filter values from Zustand store for display
+  const userLocation = useFilterStore((state) => state.userLocation);
+  const radiusMiles = useFilterStore((state) => state.filters.radius);
+
   console.log("paginatedListings:", paginatedListings);
   return (
-    <div className="h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-50 overflow-hidden">
+    <div className="bg-gradient-to-br from-emerald-50 via-white to-emerald-50 overflow-hidden">
       {/* Navbar */}
-      <Navbar 
+      <Navbar
         onLogoClick={() => window.location.reload()}
         rightContent={
           <button
             className="px-6 py-2 bg-emerald-500 text-white font-medium rounded-xl shadow-md hover:bg-emerald-600 transition-colors"
-            onClick={() => window.open('https://mysagahealth.com', '_blank')}
+            onClick={() => window.open("https://mysagahealth.com", "_blank")}
           >
             Learn More
           </button>
@@ -49,28 +43,10 @@ export default function WellnessMarketplaceView({
       />
 
       {/* Search Bar */}
-      <SearchBar
-        searchQuery={searchQuery}
-        onSearchChange={onSearchChange}
-        selectedCategory={selectedCategory}
-        onCategoryChange={onCategoryChange}
-        selectedBookableFilter={selectedBookableFilter}
-        onBookableFilterChange={onBookableFilterChange}
-        userLocation={userLocation}
-        onLocationSelect={onLocationSelect}
-        onClearLocation={onClearLocation}
-      />
+      <SearchBar />
 
       {/* Filters */}
-      {/* <Filters
-        selectedCategory={selectedCategory}
-        onCategoryChange={onCategoryChange}
-        selectedBookableFilter={selectedBookableFilter}
-        onBookableFilterChange={onBookableFilterChange}
-        selectedRadius={radiusMiles}
-        onRadiusChange={onRadiusChange}
-        hasLocation={!!userLocation}
-      /> */}
+      <Filters />
 
       {/* LMN Button Banner */}
       <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 border-b border-emerald-600">

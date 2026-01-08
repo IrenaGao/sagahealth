@@ -1,23 +1,6 @@
-import FiltersView from './Filters.view.jsx';
+import FiltersView from './Filters.view.new.jsx';
 
-export default function Filters({
-  selectedCategory,
-  onCategoryChange,
-  selectedBookableFilter,
-  onBookableFilterChange,
-  selectedRadius,
-  onRadiusChange,
-  hasLocation,
-}) {
-  return (
-    <FiltersView
-      selectedCategory={selectedCategory}
-      onCategoryChange={onCategoryChange}
-      selectedBookableFilter={selectedBookableFilter}
-      onBookableFilterChange={onBookableFilterChange}
-      selectedRadius={selectedRadius}
-      onRadiusChange={onRadiusChange}
-      hasLocation={hasLocation}
-    />
-  );
+// Controller is now minimal - Zustand handles state
+export default function Filters() {
+  return <FiltersView />;
 }

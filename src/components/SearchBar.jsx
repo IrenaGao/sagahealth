@@ -1,19 +1,18 @@
 import { useState, useEffect } from 'react'
 import { geocodeAddress } from '../utils/googleGeocoding'
+import { useFilterStore } from './Filters/filterStore'
 
 const categories = ['All', 'Gym', 'Massage', 'Yoga'];
 
-export default function SearchBar({
-  searchQuery,
-  onSearchChange,
-  selectedCategory,
-  onCategoryChange,
-  selectedBookableFilter,
-  onBookableFilterChange,
-  userLocation,
-  onLocationSelect,
-  onClearLocation,
-}) {
+export default function SearchBar() {
+  // Get state and actions from Zustand store
+  const searchQuery = useFilterStore((state) => state.searchQuery);
+  const setSearchQuery = useFilterStore((state) => state.setSearchQuery);
+  const filters = useFilterStore((state) => state.filters);
+  const setFilter = useFilterStore((state) => state.setFilter);
+  const userLocation = useFilterStore((state) => state.userLocation);
+  const setUserLocation = useFilterStore((state) => state.setUserLocation);
+  
   const [isLoadingLocation, setIsLoadingLocation] = useState(false)
   const [suggestions, setSuggestions] = useState([])
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -46,11 +45,11 @@ export default function SearchBar({
   const handleSelectSuggestion = async (suggestion) => {
     console.log('Selected suggestion:', suggestion)
     if (suggestion.type === 'category') {
-      onCategoryChange(suggestion.value)
-      onSearchChange('')
+      setFilter('category', suggestion.value)
+      setSearchQuery('')
       setShowSuggestions(false)
     } else if (suggestion.type === 'location') {
-      onSearchChange('') // Clear search first
+      setSearchQuery('') // Clear search first
       await handleLocationSearch(suggestion.value)
       setShowSuggestions(false)
     }
@@ -76,8 +75,8 @@ export default function SearchBar({
           lng: result.lng,
           address: result.formattedAddress || locationQuery,
         }
-        console.log('Location found, calling onLocationSelect:', locationData)
-        onLocationSelect(locationData)
+        console.log('Location found, calling setUserLocation:', locationData)
+        setUserLocation(locationData)
       } else {
         console.error('Geocoding failed: No results found')
         alert('Location not found. Please try a different address.')
@@ -100,14 +99,14 @@ export default function SearchBar({
     
     if (matchedCategory && matchedCategory !== 'All') {
       console.log('Matched category:', matchedCategory)
-      onCategoryChange(matchedCategory)
-      onSearchChange('')
+      setFilter('category', matchedCategory)
+      setSearchQuery('')
       setShowSuggestions(false)
     } else {
       // Treat as location search
       console.log('Treating as location search')
       const query = searchQuery
-      onSearchChange('') // Clear search before location search
+      setSearchQuery('') // Clear search before location search
       handleLocationSearch(query)
     }
   }
@@ -131,7 +130,7 @@ export default function SearchBar({
                 type="text"
                 placeholder="Search services (e.g., Massage, Yoga) or location (e.g., New York, 10001)..."
                 value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={handleKeyPress}
                 onFocus={() => searchQuery && setShowSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
@@ -172,11 +171,11 @@ export default function SearchBar({
               
               {/* Active Filters Display and Search Icon */}
               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                {selectedCategory !== 'All' && (
+                {filters.category !== 'all' && (
                   <div className="flex items-center gap-1 bg-emerald-100 px-2 py-1 rounded-lg">
-                    <span className="text-xs text-emerald-800">{selectedCategory}</span>
+                    <span className="text-xs text-emerald-800">{filters.category}</span>
                     <button
-                      onClick={() => onCategoryChange('All')}
+                      onClick={() => setFilter('category', 'all')}
                       className="text-emerald-600 hover:text-emerald-800 font-bold text-xs"
                     >
                       ✕
@@ -187,7 +186,7 @@ export default function SearchBar({
                   <div className="flex items-center gap-1 bg-blue-100 px-2 py-1 rounded-lg">
                     <span className="text-xs text-blue-800">📍 {userLocation.address.split(',')[0]}</span>
                     <button
-                      onClick={onClearLocation}
+                      onClick={() => setUserLocation(null)}
                       className="text-blue-600 hover:text-blue-800 font-bold text-xs"
                     >
                       ✕
@@ -225,9 +224,9 @@ export default function SearchBar({
           {categories.map((category) => (
             <button
               key={category}
-              onClick={() => onCategoryChange(category)}
+              onClick={() => setFilter('category', category.toLowerCase())}
               className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
-                selectedCategory === category
+                filters.category === category.toLowerCase()
                   ? 'bg-emerald-500 text-white shadow-md'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
