@@ -9,6 +9,121 @@ import {
   reverseGeocode,
 } from "../../utils/googleGeocoding";
 import { API_URL } from "../../config";
+import { INCLUDED_TYPES } from "../../config/wellnessCategories";
+
+// Stock photos for different wellness types (multiple options per type)
+const STOCK_PHOTOS = {
+  spa: [
+    "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&h=450&fit=crop", // Spa interior
+    "https://images.unsplash.com/photo-1560750588-73207b1ef5b8?w=800&h=450&fit=crop", // Spa treatment room
+    "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=450&fit=crop", // Spa with stones
+    "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&h=450&fit=crop", // Modern spa
+  ],
+  gym: [
+    "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&h=450&fit=crop", // Gym equipment
+    "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=450&fit=crop", // Fitness center
+    "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=800&h=450&fit=crop", // Workout area
+    "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=800&h=450&fit=crop", // Modern gym
+  ],
+  chiropractor: [
+    "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=800&h=450&fit=crop", // Chiropractic office
+    "https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=800&h=450&fit=crop", // Medical office
+    "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&h=450&fit=crop", // Healthcare facility
+    "https://images.unsplash.com/photo-1559757175-0eb30cd8c063?w=800&h=450&fit=crop", // Medical consultation room
+  ],
+  beauty_salon: [
+    "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=800&h=450&fit=crop", // Beauty salon
+    "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&h=450&fit=crop", // Salon interior
+    "https://images.unsplash.com/photo-1622296089863-9a17db4820ce?w=800&h=450&fit=crop", // Beauty treatment room
+    "https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?w=800&h=450&fit=crop", // Stylish salon
+  ],
+  hair_care: [
+    "https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=800&h=450&fit=crop", // Hair salon
+    "https://images.unsplash.com/photo-1521590832167-7bcbf0ab8868?w=800&h=450&fit=crop", // Hair styling station
+    "https://images.unsplash.com/photo-1562322140-8baeececf3df?w=800&h=450&fit=crop", // Hair salon interior
+    "https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?w=800&h=450&fit=crop", // Hair care facility
+  ],
+  massage: [
+    "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&h=450&fit=crop", // Massage/spa
+    "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800&h=450&fit=crop", // Massage table
+    "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=450&fit=crop", // Therapy room
+    "https://images.unsplash.com/photo-1506629905607-0b5ab9a9e21a?w=800&h=450&fit=crop", // Wellness massage
+  ],
+  sauna: [
+    "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=450&fit=crop", // Sauna
+    "https://images.unsplash.com/photo-1540541338287-41700207dee6?w=800&h=450&fit=crop", // Steam room
+    "https://images.unsplash.com/photo-1559599101-f09722fb4948?w=800&h=450&fit=crop", // Relaxation space
+    "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=800&h=450&fit=crop", // Wellness facility
+  ],
+  wellness_center: [
+    "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=450&fit=crop", // Wellness center
+    "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=450&fit=crop", // Holistic center
+    "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=800&h=450&fit=crop", // Health center
+    "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&h=450&fit=crop", // Wellness space
+  ],
+  yoga_studio: [
+    "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=450&fit=crop", // Yoga studio
+    "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=450&fit=crop", // Meditation space
+    "https://images.unsplash.com/photo-1559757175-0eb30cd8c063?w=800&h=450&fit=crop", // Peaceful studio
+    "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=800&h=450&fit=crop", // Yoga room
+  ],
+  default: [
+    "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=800&h=450&fit=crop", // Default wellness
+    "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&h=450&fit=crop", // Healthcare
+    "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=450&fit=crop", // Wellness
+    "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&h=450&fit=crop", // Relaxation
+  ]
+};
+
+// Track used photos to avoid duplicates on the same page
+let usedPhotos = new Set();
+
+// Get stock photo URL based on place type (ensures no duplicates)
+const getStockPhotoForType = (types) => {
+  if (!types || types.length === 0) {
+    return getUniquePhoto(STOCK_PHOTOS.default);
+  }
+
+  // Check for specific types in order of preference
+  const typePriority = ['spa', 'yoga_studio', 'gym', 'massage', 'wellness_center', 'chiropractor', 'beauty_salon', 'hair_care', 'sauna'];
+
+  for (const priorityType of typePriority) {
+    if (types.includes(priorityType)) {
+      const photoArray = STOCK_PHOTOS[priorityType];
+      if (photoArray && photoArray.length > 0) {
+        return getUniquePhoto(photoArray);
+      }
+    }
+  }
+
+  // If no specific match, return default
+  return getUniquePhoto(STOCK_PHOTOS.default);
+};
+
+// Helper function to get a unique photo that hasn't been used yet
+const getUniquePhoto = (photoArray) => {
+  // Filter out already used photos
+  const availablePhotos = photoArray.filter(photo => !usedPhotos.has(photo));
+
+  // If no available photos, reset and start over (shouldn't happen with our photo count)
+  if (availablePhotos.length === 0) {
+    usedPhotos.clear();
+    return photoArray[Math.floor(Math.random() * photoArray.length)];
+  }
+
+  // Select random available photo
+  const selectedPhoto = availablePhotos[Math.floor(Math.random() * availablePhotos.length)];
+
+  // Mark as used
+  usedPhotos.add(selectedPhoto);
+
+  return selectedPhoto;
+};
+
+// Reset used photos when fetching new data
+const resetUsedPhotos = () => {
+  usedPhotos.clear();
+};
 
 export default function WellnessMarketplace() {
   const navigate = useNavigate();
@@ -16,6 +131,7 @@ export default function WellnessMarketplace() {
   const [googlePlacesProviders, setGooglePlacesProviders] = useState([]);
   const [highlightedId, setHighlightedId] = useState(undefined);
   const [loading, setLoading] = useState(true);
+  const [googlePlacesLoading, setGooglePlacesLoading] = useState(false);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const listRefs = useRef({});
@@ -29,8 +145,6 @@ export default function WellnessMarketplace() {
   const setUserLocation = useFilterStore((state) => state.setUserLocation);
   
   const selectedCategory = filters.category;
-  const selectedBookableFilter = filters.bookableFilter;
-  const radiusMiles = filters.radius;
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   // Fetch providers from Supabase and Google Places when userLocation changes
@@ -38,93 +152,146 @@ export default function WellnessMarketplace() {
     fetchProviders();
   }, [userLocation]);
 
-  // Request user's location on page load
+  // Ask for location permission on first visit
   useEffect(() => {
-    const getLocationFromIP = async () => {
-      try {
-        console.log("📍 Attempting IP-based location...");
-        const response = await fetch("https://ipapi.co/json/");
-        const data = await response.json();
+    const requestLocationPermission = async () => {
+      // Wait a bit for page to fully load
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-        if (data.latitude && data.longitude) {
-          const locationData = {
-            lat: data.latitude,
-            lng: data.longitude,
-            address: `${data.city}, ${data.region_code}, ${data.country_name}`,
-          };
-          console.log("✅ IP-based location:", locationData);
-          setUserLocation(locationData);
-        }
-      } catch (error) {
-        console.error("❌ IP-based location failed:", error);
+      if (!("geolocation" in navigator) || userLocation) {
+        console.log("Geolocation not supported or location already set");
+        return;
       }
-    };
 
-    console.log("Checking for geolocation support...");
-    if ("geolocation" in navigator) {
-      console.log("Requesting user location...");
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          console.log("✅ User coordinates received:", latitude, longitude);
+      // Check current permission state if Permissions API is available
+      if ("permissions" in navigator) {
+        try {
+          const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
+          console.log("permission state:", permissionStatus.state);
 
-          // Reverse geocode to get address
-          try {
-            const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-            if (!apiKey) {
-              console.error("Google Maps API key not configured");
-              return;
-            }
+          if (permissionStatus.state === 'denied') {
+            console.log("Location permission already denied, skipping request");
+            return;
+          }
 
-            const formattedAddress = await reverseGeocode({
+          // Listen for permission changes
+          permissionStatus.addEventListener('change', () => {
+            console.log("Permission state changed to:", permissionStatus.state);
+          });
+        } catch (error) {
+          console.log("Could not query permission state:", error);
+        }
+      }
+
+      console.log("Requesting location permission...");
+
+      // Helper function to reverse geocode and set location
+      const setLocationWithReverseGeocode = async (latitude, longitude, accuracyLabel) => {
+        console.log(`Location permission granted, coordinates received (${accuracyLabel})`);
+        console.log(`Coordinates: ${latitude}, ${longitude}`);
+
+        // Always try reverse geocoding first for better UX
+        try {
+          const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+          if (apiKey) {
+            console.log("🔄 Reverse geocoding coordinates...");
+            const readableAddress = await reverseGeocode({
               apiKey,
               lat: latitude,
               lng: longitude,
             });
 
-            if (formattedAddress) {
+            if (readableAddress) {
+              console.log("✅ Reverse geocoding successful:", readableAddress);
               const locationData = {
                 lat: latitude,
                 lng: longitude,
-                address: formattedAddress,
+                address: readableAddress,
               };
-              console.log("✅ Auto-detected location:", locationData);
-              console.log("Setting user location state...");
               setUserLocation(locationData);
-              console.log("✅ User location state updated");
+              return;
             } else {
-              console.error(
-                "No reverse geocoding results found, trying IP-based location"
-              );
-              getLocationFromIP();
+              console.warn("⚠️ Reverse geocoding returned no results");
             }
-          } catch (error) {
-            console.error("❌ Error reverse geocoding user location:", error);
-            getLocationFromIP();
+          } else {
+            console.warn("⚠️ No Google Maps API key for reverse geocoding");
           }
-        },
-        (error) => {
-          console.log(
-            "❌ User denied location permission or error occurred:",
-            error.message,
-            error.code
-          );
-          console.log("Falling back to IP-based location...");
-          getLocationFromIP();
-        },
-        {
-          enableHighAccuracy: false,
-          timeout: 5000,
-          maximumAge: 0,
+        } catch (error) {
+          console.error("❌ Reverse geocoding failed:", error);
         }
-      );
-    } else {
-      console.log(
-        "❌ Geolocation is not supported by this browser, using IP-based location"
-      );
-      getLocationFromIP();
-    }
-  }, []);
+
+        // Fallback: Create a basic city/state format from coordinates
+        console.log("📍 Using coordinate-based location");
+        // For better UX, try to get approximate city from coordinates
+        // This is a simple approximation - in production you'd want better geocoding
+        let approximateLocation = "Your Location";
+        if (latitude && longitude) {
+          // Very basic approximation for major US cities
+          if (latitude > 40.6 && latitude < 40.8 && longitude > -74.1 && longitude < -73.9) {
+            approximateLocation = "New York, NY";
+          } else if (latitude > 34.0 && latitude < 34.2 && longitude > -118.3 && longitude < -118.1) {
+            approximateLocation = "Los Angeles, CA";
+          } else if (latitude > 41.8 && latitude < 42.0 && longitude > -87.7 && longitude < -87.5) {
+            approximateLocation = "Chicago, IL";
+          }
+          // Add more city approximations as needed
+        }
+
+        const locationData = {
+          lat: latitude,
+          lng: longitude,
+          address: approximateLocation,
+        };
+        setUserLocation(locationData);
+      };
+
+      // Try high accuracy first, then fall back to low accuracy if it times out
+      const tryHighAccuracy = () => {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const { latitude, longitude, accuracy } = position.coords;
+            await setLocationWithReverseGeocode(latitude, longitude, "high accuracy");
+          },
+          (error) => {
+            console.log(`High accuracy location failed (${error.code}):`, error.message);
+
+            // If high accuracy fails with timeout, try low accuracy as fallback
+            if (error.code === 3) { // TIMEOUT
+              console.log("Trying low accuracy location as fallback...");
+              tryLowAccuracy();
+            }
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 30000, // 30 seconds for high accuracy
+            maximumAge: 600000, // Accept cached location up to 10 minutes old
+          }
+        );
+      };
+
+      const tryLowAccuracy = () => {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const { latitude, longitude, accuracy } = position.coords;
+            await setLocationWithReverseGeocode(latitude, longitude, "low accuracy fallback");
+          },
+          (error) => {
+            console.log(`Low accuracy location also failed (${error.code}):`, error.message);
+          },
+          {
+            enableHighAccuracy: false,
+            timeout: 20000, // 20 seconds for low accuracy
+            maximumAge: 600000, // Accept cached location up to 10 minutes old
+          }
+        );
+      };
+
+      // Start with high accuracy attempt
+      tryHighAccuracy();
+    };
+
+    requestLocationPermission();
+  }, []); // Only run once on mount
 
   // Load Google Maps JS (non-blocking; UI renders immediately)
   useEffect(() => {
@@ -167,75 +334,118 @@ export default function WellnessMarketplace() {
     return { lat: 40.7484, lng: -73.9857 }; // Fallback to default
   };
 
-  // Fetch Google Places nearby services using Places Service API
+  // Fetch Google Places nearby services using Places API (New) REST endpoint
   const fetchGooglePlaces = async (location) => {
     try {
-      if (!location) return [];
-
-      try {
-        await loadGoogleMaps({ apiKey: googleMapsApiKey, libraries: ["places"] });
-      } catch (e) {
-        console.warn("Google Maps not loaded yet; skipping Places.", e);
+      if (!location || !googleMapsApiKey) {
+        console.log("fetchGooglePlaces: Missing location or API key", { location, hasApiKey: !!googleMapsApiKey });
         return [];
       }
 
-      if (!window.google?.maps?.places) return [];
-
       const { lat, lng } = location;
+      // Fixed 50 miles radius, converted to meters and capped at 50000 meters (API limit)
+      const radiusMeters = Math.min(50 * 1609.34, 50000);
 
-      // Create a PlacesService instance
-      const service = new window.google.maps.places.PlacesService(
-        document.createElement("div")
-      );
-
-      const request = {
-        location: new window.google.maps.LatLng(lat, lng),
-        radius: radiusMiles * 1609.34, // Convert miles to meters
-        // type: "health", // Can be customized: 'spa', 'gym', etc.
+      const requestBody = {
+        includedTypes: INCLUDED_TYPES,
+        excludedTypes: ["lodging"],
+        maxResultCount: 20,
+        locationRestriction: {
+          circle: {
+            center: {
+              latitude: lat,
+              longitude: lng,
+            },
+            radius: radiusMeters,
+          },
+        },
       };
 
-      return new Promise((resolve) => {
-        service.nearbySearch(request, (results, status) => {
-          if (
-            status === window.google.maps.places.PlacesServiceStatus.OK &&
-            results
-          ) {
-            const mappedPlaces = results.map((place) => {
-              const coordinates = {
-                lat: place.geometry?.location?.lat(),
-                lng: place.geometry?.location?.lng(),
-              };
-              const id = `gplace-${place.place_id}`;
-              return {
-                id,
-                order: null,
-                name: place.name || "Unnamed Place",
-                categories: place.types || ["Other"],
-                description: place.vicinity || "",
-                bookingLink: place.place_id
-                  ? `https://www.google.com/maps/place/?q=place_id:${place.place_id}`
-                  : "",
-                rating: place.rating ?? null,
-                reviewCount: place.user_ratings_total ?? 0,
-                address: place.vicinity || "",
-                image:
-                  "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=450&fit=crop",
-                neighborhood: "",
-                city: "",
-                coordinates,
-                bookingSystemEnabled: false,
-                stripeAcctId: null,
-                isGooglePlace: true,
-              };
-            });
-            setGooglePlacesProviders(mappedPlaces);
-            resolve(mappedPlaces);
-          } else {
-            console.error("Places search failed:", status);
-            resolve([]);
-          }
+      console.log("fetchGooglePlaces: Making request", { lat, lng, radiusMeters, requestBody });
+
+      // Use the modern Places API (New) REST endpoint
+      const response = await fetch(
+        "https://places.googleapis.com/v1/places:searchNearby",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": googleMapsApiKey,
+            "X-Goog-FieldMask":
+              "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.types,places.googleMapsUri",
+          },
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      const responseText = await response.text();
+      console.log("fetchGooglePlaces: Response status", response.status);
+      console.log("fetchGooglePlaces: Response body", responseText);
+
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = JSON.parse(responseText);
+        } catch (e) {
+          errorData = { raw: responseText };
+        }
+        console.error("Places API (New) error:", {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData,
         });
+        setGooglePlacesProviders([]);
+        return [];
+      }
+
+      const data = JSON.parse(responseText);
+      const places = data.places || [];
+
+      console.log("fetchGooglePlaces: Found places", places.length);
+
+      const mappedPlaces = places.map((place) => {
+        const coordinates = {
+          lat: place.location?.latitude ?? lat,
+          lng: place.location?.longitude ?? lng,
+        };
+        const placeId = place.id || `gplace-${Date.now()}-${Math.random()}`;
+        const id = `gplace-${placeId}`;
+
+        // Extract address from formattedAddress or use fallback
+        const address =
+          place.formattedAddress || place.displayName?.text || "";
+
+        // Filter categories to only include types that are in INCLUDED_TYPES
+        const filteredCategories = (place.types || []).filter((type) =>
+          INCLUDED_TYPES.includes(type)
+        );
+
+        // Get stock photo URL based on place types
+        const imageUrl = getStockPhotoForType(filteredCategories);
+
+        return {
+          id,
+          order: null,
+          name: place.displayName?.text || "Unnamed Place",
+          categories: filteredCategories.length > 0 ? filteredCategories : ["Other"],
+          business_type: filteredCategories.length > 0 ? filteredCategories[0] : "Other", // Primary type for compatibility
+          description: address,
+          bookingLink: place.googleMapsUri || `https://www.google.com/maps/place/?q=place_id:${placeId}`,
+          rating: place.rating ?? null,
+          reviewCount: place.userRatingCount ?? 0,
+          address: address,
+          image: imageUrl,
+          neighborhood: "",
+          city: "",
+          coordinates,
+          bookingSystemEnabled: false,
+          stripeAcctId: null,
+          isGooglePlace: true,
+        };
       });
+
+      setGooglePlacesProviders(mappedPlaces);
+      return mappedPlaces;
     } catch (err) {
       console.error("Error fetching Google Places", err);
       setGooglePlacesProviders([]);
@@ -246,6 +456,8 @@ export default function WellnessMarketplace() {
   const fetchProviders = async () => {
     try {
       setLoading(true);
+      // Reset used photos for fresh selection
+      resetUsedPhotos();
       // Fetch Supabase providers
       const { data, error } = await supabase
         .from("providers")
@@ -254,9 +466,18 @@ export default function WellnessMarketplace() {
 
       // Fetch Google Places providers if userLocation is available
       let googleData = [];
-      // if (userLocation) {
-      googleData = await fetchGooglePlaces(userLocation);
-      // }
+      if (userLocation) {
+        setGooglePlacesLoading(true);
+        try {
+          googleData = await fetchGooglePlaces(userLocation);
+          console.log("Fetched Google Places providers:", googleData.length);
+        } catch (googleError) {
+          console.error("Error fetching Google Places:", googleError);
+          // Don't fail completely, just continue with Supabase providers
+        } finally {
+          setGooglePlacesLoading(false);
+        }
+      }
 
       console.log("userLocation", { userLocation, googleData });
 
@@ -281,15 +502,14 @@ export default function WellnessMarketplace() {
             order: provider.order ?? null,
             name: provider.business_name || "Unnamed Business",
             categories: categories, // Now an array
+            business_type: categories[0] || "Other", // Primary business type for compatibility
             description: provider.short_summary || "",
             bookingLink: provider.booking_link || "",
             rating: provider.rating || null,
             reviewCount: provider.num_reviews || 0,
             address: provider.address || "",
-            // Use provider image or default fallback
-            image:
-              provider.image ||
-              "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=450&fit=crop",
+            // Use provider's custom image if available, otherwise use stock photo based on type
+            image: provider.image || getStockPhotoForType(categories),
             neighborhood: "",
             city: "",
             coordinates: coordinates,
@@ -335,13 +555,18 @@ export default function WellnessMarketplace() {
     console.log("=== FILTERING PROVIDERS ===");
     console.log("Total providers:", providers.length);
     console.log("Selected category:", selectedCategory);
-    console.log("Selected bookable filter:", selectedBookableFilter);
     console.log(
       "User location:",
       userLocation
         ? `${userLocation.address} (${userLocation.lat}, ${userLocation.lng})`
         : "null"
     );
+
+    // Don't show any providers until location is set
+    if (!userLocation) {
+      console.log("No location set, returning empty list");
+      return [];
+    }
 
     return providers.filter((provider) => {
       const matchesCategory =
@@ -350,14 +575,7 @@ export default function WellnessMarketplace() {
           (cat) => cat.toLowerCase() === selectedCategory.toLowerCase()
         );
 
-      const matchesBookableFilter =
-        selectedBookableFilter === "all" ||
-        (selectedBookableFilter === "bookable" &&
-          provider.bookingSystemEnabled !== false) ||
-        (selectedBookableFilter === "non-bookable" &&
-          provider.bookingSystemEnabled === false);
-
-      // Location-based filtering
+      // Location-based filtering (fixed 50 miles)
       const matchesLocation =
         !userLocation ||
         (provider.coordinates &&
@@ -366,21 +584,20 @@ export default function WellnessMarketplace() {
             userLocation.lng,
             provider.coordinates.lat,
             provider.coordinates.lng
-          ) <= radiusMiles);
+          ) <= 50); // Fixed 50 miles
 
-      return matchesCategory && matchesBookableFilter && matchesLocation;
+      return matchesCategory && matchesLocation;
     });
-  }, [providers, selectedCategory, selectedBookableFilter, userLocation, radiusMiles]);
+  }, [providers, selectedCategory, userLocation]);
 
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [
-    selectedCategory,
-    selectedBookableFilter,
-    userLocation,
-    providers.length,
-  ]);
+    }, [
+      selectedCategory,
+      userLocation,
+      providers.length,
+    ]);
 
   const totalPages = Math.max(
     1,
@@ -417,6 +634,7 @@ export default function WellnessMarketplace() {
   return (
     <WellnessMarketplaceView
         loading={loading}
+        googlePlacesLoading={googlePlacesLoading}
         error={error}
         filteredListings={filteredListings}
         paginatedListings={paginatedListings}

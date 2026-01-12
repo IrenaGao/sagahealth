@@ -17,11 +17,25 @@ export default function ListingCard({ listing, isHighlighted, onClick }) {
     if (onClick) {
       onClick();
     }
-    // Navigate to service details page using business name
+
     const urlFriendlyName = toUrlFriendly(
       listing.name || listing.business_name || `service-${listing.id}`
     );
-    navigate(`/service/${urlFriendlyName}`);
+
+    // Handle Google Places providers differently - they don't have service details in our DB
+    if (listing.isGooglePlace) {
+      // For Google Places providers, navigate directly to LMN form
+      navigate(`/book/${urlFriendlyName}/lmn-form`, {
+        state: {
+          stripeAcctId: listing.stripeAcctId || null,
+          bookingSystemEnabled: false,
+          providerData: listing, // Pass the provider data since it's not in DB
+        },
+      });
+    } else {
+      // For regular providers, show service details
+      navigate(`/service/${urlFriendlyName}`);
+    }
   };
 
   return (

@@ -45,10 +45,16 @@ export const useFilterStore = create(
     {
       name: 'wellness-filters', // LocalStorage key
       partialPersist: (state) => ({
-        // Only persist filters and search, not location
+        // Only persist filters and search, explicitly exclude location
         filters: state.filters,
         searchQuery: state.searchQuery,
       }),
+      // Ensure userLocation is never restored from localStorage
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.userLocation = null; // Always reset location on app restart
+        }
+      },
     }
   )
 );

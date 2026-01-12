@@ -6,6 +6,7 @@ export const filterDefinitions = [
     label: 'Category',
     type: 'select',
     defaultValue: 'all',
+    showOnlyWhen: () => false, // Hide category dropdown, keep for category pills
     options: [
       { value: 'all', label: 'All Categories' },
       { value: 'gym', label: 'Gym' },
@@ -18,31 +19,6 @@ export const filterDefinitions = [
       { value: 'mental health', label: 'Mental Health' },
       { value: 'physical therapy', label: 'Physical Therapy' },
       { value: 'chiropractic', label: 'Chiropractic' },
-    ],
-  },
-  {
-    id: 'bookableFilter',
-    label: 'Booking Type',
-    type: 'select',
-    defaultValue: 'all',
-    options: [
-      { value: 'all', label: 'All Providers' },
-      { value: 'bookable', label: 'Bookable Online' },
-      { value: 'non-bookable', label: 'Contact to Book' },
-    ],
-  },
-  {
-    id: 'radius',
-    label: 'Distance',
-    type: 'select',
-    defaultValue: 50,
-    showOnlyWhen: (state) => !!state.userLocation, // Only show when location exists
-    options: [
-      { value: 5, label: '5 miles' },
-      { value: 10, label: '10 miles' },
-      { value: 25, label: '25 miles' },
-      { value: 50, label: '50 miles' },
-      { value: 100, label: '100 miles' },
     ],
   },
 ];

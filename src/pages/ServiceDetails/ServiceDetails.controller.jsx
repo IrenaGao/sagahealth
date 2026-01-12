@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../../supabaseClient.js';
 import { buildIlikePattern } from '../../utils/stringUtils.js';
 
@@ -12,6 +12,7 @@ import { faqs } from './ServiceDetails.model.jsx';
 export default function ServiceDetails() {
   const { businessName: businessSlug } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [service, setService] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -24,6 +25,44 @@ export default function ServiceDetails() {
   const fetchServiceDetails = async () => {
     try {
       setLoading(true);
+
+      // Check if provider data was passed through navigation state (for Google Places providers)
+      const providerDataFromState = window.history?.state?.usr?.providerData || location.state?.providerData;
+
+      if (providerDataFromState) {
+        // Use provider data from navigation state (Google Places provider)
+        console.log('ServiceDetails: Using provider data from navigation state:', providerDataFromState);
+
+        let categories = [];
+        if (Array.isArray(providerDataFromState.business_type)) {
+          categories = providerDataFromState.business_type;
+        } else if (providerDataFromState.business_type) {
+          categories = [providerDataFromState.business_type];
+        } else if (providerDataFromState.categories) {
+          categories = providerDataFromState.categories;
+        } else {
+          categories = ['Other'];
+        }
+
+        const mappedData = {
+          id: providerDataFromState.id,
+          name: providerDataFromState.name || 'Unnamed Business',
+          categories: categories,
+          description: providerDataFromState.description || '',
+          address: providerDataFromState.address || '',
+          rating: providerDataFromState.rating || null,
+          reviewCount: providerDataFromState.reviewCount || 0,
+          image: providerDataFromState.image || '',
+          bookingSystemEnabled: providerDataFromState.bookingSystemEnabled !== false,
+          bookingLink: providerDataFromState.bookingLink || '',
+        };
+
+        setServiceDetails(mappedData);
+        setLoading(false);
+        return;
+      }
+
+      // Otherwise, fetch from database (regular providers)
       const searchPattern = buildIlikePattern(businessSlug);
       const { data, error } = await supabase
         .from('providers')

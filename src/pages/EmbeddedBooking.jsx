@@ -71,11 +71,44 @@ export default function EmbeddedBooking() {
   const fetchServiceDetails = async () => {
     try {
       setLoading(true);
-      
-      // Convert URL-friendly name back to search pattern
+
+      // Check if provider data was passed through navigation state (for Google Places providers)
+      const providerDataFromState = location.state?.providerData;
+
+      if (providerDataFromState) {
+        // Use provider data from navigation state (Google Places provider)
+        console.log('Using provider data from navigation state:', providerDataFromState);
+
+        let categories = [];
+        if (Array.isArray(providerDataFromState.business_type)) {
+          categories = providerDataFromState.business_type;
+        } else if (providerDataFromState.business_type) {
+          categories = [providerDataFromState.business_type];
+        } else if (providerDataFromState.categories) {
+          categories = providerDataFromState.categories;
+        }
+
+        setService({
+          id: providerDataFromState.id,
+          name: providerDataFromState.name || 'Wellness Service',
+          categories: categories,
+          description: providerDataFromState.description || '',
+          address: providerDataFromState.address || '',
+          rating: providerDataFromState.rating || null,
+          reviewCount: providerDataFromState.reviewCount || 0,
+          takeRate: null, // Google Places don't have take rates
+          isApp: false,
+          appImageUrl: null,
+          widgetType: null,
+        });
+
+        setLoading(false);
+        return;
+      }
+
+      // Otherwise, fetch from database (regular providers)
       const searchPattern = fromUrlFriendly(businessName);
-      
-      // Fetch provider details
+
       const { data: providerData, error: providerError } = await supabase
         .from('providers')
         .select('*')

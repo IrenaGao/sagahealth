@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { geocodeAddress } from '../utils/googleGeocoding'
 import { useFilterStore } from './Filters/filterStore'
+import { getDisplayCategories, formatCategoryType, INCLUDED_TYPES, formatCategoryDisplay } from '../config/wellnessCategories'
 
-const categories = ['All', 'Gym', 'Massage', 'Yoga'];
+const categories = getDisplayCategories();
 
 export default function SearchBar() {
   // Get state and actions from Zustand store
@@ -45,7 +46,9 @@ export default function SearchBar() {
   const handleSelectSuggestion = async (suggestion) => {
     console.log('Selected suggestion:', suggestion)
     if (suggestion.type === 'category') {
-      setFilter('category', suggestion.value)
+      // Convert display format to type format for filter matching
+      const categoryType = formatCategoryType(suggestion.value)
+      setFilter('category', categoryType)
       setSearchQuery('')
       setShowSuggestions(false)
     } else if (suggestion.type === 'location') {
@@ -92,14 +95,22 @@ export default function SearchBar() {
   const handleSearch = () => {
     if (!searchQuery.trim()) return
     
-    // Check if it matches a category first
-    const matchedCategory = categories.find(cat => 
-      cat.toLowerCase() === searchQuery.toLowerCase()
-    )
+    // Check if it matches a category first (case-insensitive, with or without spaces/underscores)
+    const queryLower = searchQuery.toLowerCase().trim()
+    const matchedCategory = categories.find(cat => {
+      if (cat === 'All') return false
+      const catLower = cat.toLowerCase()
+      const catType = formatCategoryType(cat) // Convert display to type format
+      return catLower === queryLower || 
+             catLower.replace(/\s+/g, '') === queryLower.replace(/\s+/g, '') ||
+             catType === queryLower.replace(/\s+/g, '_')
+    })
     
     if (matchedCategory && matchedCategory !== 'All') {
       console.log('Matched category:', matchedCategory)
-      setFilter('category', matchedCategory)
+      // Convert display format to type format for filter matching
+      const categoryType = formatCategoryType(matchedCategory)
+      setFilter('category', categoryType)
       setSearchQuery('')
       setShowSuggestions(false)
     } else {
@@ -119,7 +130,7 @@ export default function SearchBar() {
     }
   }
   return (
-    <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
+    <div className="bg-white sticky top-0 z-30 shadow-sm">
       <div className="max-w-[1920px] mx-auto px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 pt-6 pb-4">
         {/* Logo and Search Input Row */}
         <div className="flex items-center gap-6 md:gap-8 mb-4">
@@ -183,14 +194,10 @@ export default function SearchBar() {
                   </div>
                 )}
                 {userLocation && (
-                  <div className="flex items-center gap-1 bg-blue-100 px-2 py-1 rounded-lg">
-                    <span className="text-xs text-blue-800">📍 {userLocation.address.split(',')[0]}</span>
-                    <button
-                      onClick={() => setUserLocation(null)}
-                      className="text-blue-600 hover:text-blue-800 font-bold text-xs"
-                    >
-                      ✕
-                    </button>
+                  <div className="flex items-center gap-1 bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200">
+                    <span className="text-xs text-blue-800 font-medium">
+                      📍 {userLocation.address.split(',').slice(0, 2).join(', ') || 'Your Location'}
+                    </span>
                   </div>
                 )}
                 {/* Search Icon Button */}
@@ -219,21 +226,24 @@ export default function SearchBar() {
           </div>
         </div>
         
-        {/* Category Chips - Aligned with search bar */}
-        <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar ml-[56px] sm:ml-[174px] md:ml-[186px]">
-          {categories.map((category) => (
-            <button
-              key={category}
-              onClick={() => setFilter('category', category.toLowerCase())}
-              className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
-                filters.category === category.toLowerCase()
-                  ? 'bg-emerald-500 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {category}
-            </button>
-          ))}
+        {/* Category Chips - Left aligned */}
+        <div className="flex gap-2 overflow-x-auto hide-scrollbar">
+          {categories.map((category) => {
+            const categoryType = category === 'All' ? 'all' : formatCategoryType(category)
+            return (
+              <button
+                key={category}
+                onClick={() => setFilter('category', categoryType)}
+                className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+                  filters.category === categoryType
+                    ? 'bg-emerald-500 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {category}
+              </button>
+            )
+          })}
         </div>
       </div>
     </div>
