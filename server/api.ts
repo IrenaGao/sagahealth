@@ -29,20 +29,72 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors({
-  origin: [
-    'http://localhost:5173', // Local development
-    'https://sagahealth.vercel.app', // Production frontend
-    'https://app.mysagahealth.com', // Production frontend
-    /\.vercel\.app$/, // All Vercel preview deployments
-  ],
-  credentials: true
-}));
+app.set('trust proxy', true);
+
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
+    // Allow same-origin / non-browser clients (no Origin header)
+    if (!origin) return callback(null, true);
+
+    const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+    const isVercelPreview = /^https:\/\/.*\.vercel\.app$/.test(origin);
+    const isAllowedProd =
+      origin === 'https://sagahealth.vercel.app' ||
+      origin === 'https://app.mysagahealth.com';
+
+    if (isLocalhost || isVercelPreview || isAllowedProd) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Stripe-Signature'],
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
+});
+
+// Client IP-based location (server-side fetch to avoid browser CORS issues)
+app.get('/api/ip-location', async (req, res) => {
+  try {
+    const forwardedFor = req.headers['x-forwarded-for'];
+    const rawIp = Array.isArray(forwardedFor)
+      ? forwardedFor[0]
+      : typeof forwardedFor === 'string'
+        ? forwardedFor.split(',')[0]
+        : req.ip;
+
+    const ip = rawIp?.trim().replace(/^::ffff:/, '');
+    const isLocalIp =
+      !ip || ip === '::1' || ip === '127.0.0.1' || ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.16.');
+
+    const url = isLocalIp ? 'https://ipapi.co/json/' : `https://ipapi.co/${encodeURIComponent(ip)}/json/`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      return res.status(502).json({
+        error: 'Failed to fetch IP location',
+        status: response.status,
+        details: text,
+      });
+    }
+
+    const data = await response.json();
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json(data);
+  } catch (error: any) {
+    console.error('Error in /api/ip-location:', error);
+    return res.status(500).json({ error: 'Failed to fetch IP location' });
+  }
 });
 
 // SignWell webhook receiver - handles document events
