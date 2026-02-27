@@ -5,7 +5,7 @@ export default function PaymentSuccessPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { signatureRequest, message, paymentOption, paymentIntentId, paymentTotal, formData } = location.state || {};
+  const { signatureRequest, message, paymentTotal, formData } = location.state || {};
   const [sessionData, setSessionData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const lmnGenerationTriggeredRef = useRef(false);
@@ -17,12 +17,8 @@ export default function PaymentSuccessPage() {
   // Clear localStorage on successful payment
   useEffect(() => {
     if (sessionId) {
-      // Clear any saved form data since payment was successful
       localStorage.removeItem('lmnFormData');
-      localStorage.removeItem('lmnPaymentOption');
-      localStorage.removeItem('lmnServicePrice');
       localStorage.removeItem('lmnServiceName');
-      localStorage.removeItem('lmnDuration');
     }
   }, [sessionId]);
 
@@ -55,11 +51,11 @@ export default function PaymentSuccessPage() {
               || 'Service';
             
             window.gtag('event', 'purchase', {
-              transaction_id: data.paymentIntentId || sessionId,
+              transaction_id: sessionId,
               value: amount,
               currency: 'USD',
               items: [{
-                item_id: data.paymentIntentId || sessionId,
+                item_id: sessionId,
                 item_name: serviceType,
                 item_category: businessName,
                 price: amount,
@@ -82,7 +78,7 @@ export default function PaymentSuccessPage() {
           }
           
           // Trigger LMN generation if needed (only once)
-          if (data.paymentOption && data.paymentOption !== 'service-only' && data.formData && !lmnGenerationTriggeredRef.current) {
+          if (data.formData && !lmnGenerationTriggeredRef.current) {
             lmnGenerationTriggeredRef.current = true;
             console.log('Payment successful! Generating LMN in background...');
             fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/generate-lmn`, {
@@ -92,12 +88,8 @@ export default function PaymentSuccessPage() {
               },
               body: JSON.stringify({
                 ...data.formData,
-                // Include email from checkout session if available (since email was removed from form)
-                email: data.customerEmail || data.formData.email || null,
+                sessionId: sessionId,
                 paymentProcessed: true,
-                paymentOption: data.paymentOption,
-                paymentIntentId: data.paymentIntentId,
-                paymentAmount: data.amount
               }),
             })
               .then(response => {
@@ -133,9 +125,9 @@ export default function PaymentSuccessPage() {
   }, [sessionId]);
 
   // Use session data if available, otherwise use location state
-  const finalPaymentOption = sessionData?.paymentOption || paymentOption;
-  const finalPaymentIntentId = sessionData?.paymentIntentId || paymentIntentId;
   const finalPaymentTotal = sessionData?.amount ? (sessionData.amount / 100).toFixed(2) : paymentTotal;
+  const finalCustomerEmail = sessionData?.customerEmail || null;
+  const finalBusinessName = sessionData?.metadata?.businessName || null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-50">
@@ -173,35 +165,26 @@ export default function PaymentSuccessPage() {
             <p className="text-lg text-gray-600 mb-6">Loading payment details...</p>
           ) : (
             <>
-              {finalPaymentOption === 'service-only' ? (
-            <p className="text-lg text-gray-600 mb-6">
-                  Your appointment payment has been successfully completed. You will receive a confirmation email shortly.
-            </p>
-          ) : (
-            <p className="text-lg text-gray-600 mb-6">
-              Your information will be securely reviewed by a licensed medical professional. Once everything is approved, you'll receive your Letter of Medical Necessity within 24 hours.
-                  {finalPaymentOption === 'lmn-and-service' && (
-                    <span className="text-gray-600"> We’ve also processed your appointment payment, and you’ll receive a confirmation email shortly.</span>
-              )}
-            </p>
-          )}
+              <p className="text-lg text-gray-600 mb-6">
+            Your information will be securely reviewed by a licensed medical professional. Once everything is approved, you’ll receive your Letter of Medical Necessity within 24 hours.
+          </p>
 
           {/* Payment Confirmation (if present) */}
-              {finalPaymentIntentId && (
-            <div className="text-left bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">Payment confirmed</h2>
-              <div className="text-sm text-gray-700 space-y-1">
-                <p>
+              {sessionId && (
+                <div className="text-left bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-2">Payment confirmed</h2>
+                  <div className="text-sm text-gray-700 space-y-1">
+                    <p>
                       Amount charged: <span className="font-semibold text-blue-700">${finalPaymentTotal || '—'}</span>
-                </p>
-                <p>
-                      Payment for: <span className="font-semibold">{finalPaymentOption === 'service-only' ? 'Service' : (finalPaymentOption === 'lmn-and-service' ? 'LMN + Appointment' : 'LMN only')}</span>
-                </p>
-                <p className="text-gray-500">
-                      Reference: <span className="font-mono">{finalPaymentIntentId}</span>
-                </p>
-              </div>
-            </div>
+                    </p>
+                    {finalCustomerEmail && (
+                      <p>LMN will be sent to: <span className="font-semibold">{finalCustomerEmail}</span></p>
+                    )}
+                    {finalBusinessName && (
+                      <p>For: <span className="font-semibold">{finalBusinessName}</span></p>
+                    )}
+                  </div>
+                </div>
               )}
 
             </>

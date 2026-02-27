@@ -1,22 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-export default function StripeCheckoutButton({ 
-  amount, 
-  stripeAcctId, 
-  paymentOption, 
-  servicePrice, 
+export default function StripeCheckoutButton({
+  amount,
+  disabled: disabledProp = false,
   serviceName,
-  duration,
   firstHealthCondition,
   businessName,
   businessAddress,
   takeRate,
-  receiptEmail,
   formData,
   onError 
 }) {
-  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -32,10 +27,7 @@ export default function StripeCheckoutButton({
       // This allows us to restore it when user comes back from cancel
       if (formData) {
         localStorage.setItem('lmnFormData', JSON.stringify(formData));
-        localStorage.setItem('lmnPaymentOption', paymentOption || 'lmn-only');
-        localStorage.setItem('lmnServicePrice', servicePrice?.toString() || '80');
         localStorage.setItem('lmnServiceName', serviceName || '');
-        localStorage.setItem('lmnDuration', duration || '60 min');
       }
 
       // Build success and cancel URLs
@@ -53,18 +45,13 @@ export default function StripeCheckoutButton({
         },
         body: JSON.stringify({
           amount: amount,
-          stripeAcctId: stripeAcctId,
-          paymentOption: paymentOption,
-          servicePrice: servicePrice,
           serviceName: serviceName,
-          duration: duration,
           firstHealthCondition: firstHealthCondition,
           businessName: businessName,
           businessAddress: businessAddress,
           takeRate: takeRate,
           customerFirstName: formData?.firstName || null,
           customerLastName: formData?.lastName || null,
-          receiptEmail: receiptEmail,
           successUrl: successUrl,
           cancelUrl: cancelUrl,
           metadata: {
@@ -103,9 +90,9 @@ export default function StripeCheckoutButton({
     <div className="space-y-4">
       <button
         onClick={handleCheckout}
-        disabled={isLoading}
+        disabled={isLoading || disabledProp}
         className={`w-full px-6 py-3 rounded-lg font-semibold text-white ${
-          isLoading
+          isLoading || disabledProp
             ? 'bg-gray-400 cursor-not-allowed'
             : 'bg-blue-600 hover:bg-blue-700'
         }`}

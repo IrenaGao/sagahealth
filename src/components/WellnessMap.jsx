@@ -192,10 +192,20 @@ export default function WellnessMap({ listings, highlightedId, onMarkerClick, us
   }, [highlightedId, listings]);
 
   // Create custom marker icons
-  const getMarkerIcon = (isHighlighted) => {
+  const getMarkerIcon = (isHighlighted, isGooglePlace) => {
+    // Supabase providers = Blue, Google Places = Green
+    let fillColor;
+    if (isGooglePlace) {
+      // Google Places: Green
+      fillColor = isHighlighted ? '#10b981' : '#6ee7b7';
+    } else {
+      // Supabase providers: Blue
+      fillColor = isHighlighted ? '#3b82f6' : '#93c5fd';
+    }
+    
     return {
       path: window.google.maps.SymbolPath.CIRCLE,
-      fillColor: isHighlighted ? '#10b981' : '#6ee7b7',
+      fillColor: fillColor,
       fillOpacity: 1,
       strokeColor: '#ffffff',
       strokeWeight: 2,
@@ -230,7 +240,7 @@ export default function WellnessMap({ listings, highlightedId, onMarkerClick, us
             lat: listing.coordinates.lat,
             lng: listing.coordinates.lng,
           }}
-          icon={getMarkerIcon(highlightedId === listing.id)}
+          icon={getMarkerIcon(highlightedId === listing.id, listing.isGooglePlace)}
           onClick={() => {
             onMarkerClick(listing.id);
             setSelectedMarker(listing.id);

@@ -51,6 +51,7 @@ export default function ServiceDetailsView({
       <Navbar 
         onLogoClick={() => navigate("/")}
         onBackClick={() => navigate("/")}
+        hideSearch={true}
       />
 
       {/* Service Details Content */}
@@ -134,9 +135,7 @@ export default function ServiceDetailsView({
                 onClick={onBookingClick}
                 className="px-8 py-4 bg-emerald-500 text-white text-lg font-semibold rounded-xl shadow-lg hover:bg-emerald-600 transition-all hover:shadow-xl whitespace-nowrap"
               >
-                {service.bookingSystemEnabled === false
-                  ? "Get your LMN now"
-                  : "Book Now"}
+                Book Now
               </Button>
             </div>
           </div>
@@ -175,9 +174,7 @@ export default function ServiceDetailsView({
           onClick={onBookingClick}
           className="w-full px-8 py-4 bg-emerald-500 text-white text-lg font-semibold rounded-xl shadow-lg hover:bg-emerald-600 transition-all hover:shadow-xl"
         >
-          {service.bookingSystemEnabled === false
-            ? "Get your LMN now"
-            : "Book Now"}
+          Book Now
         </Button>
       </div>
     </div>

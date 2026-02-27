@@ -1,329 +1,26 @@
-import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { supabase } from '../supabaseClient';
-
-// Helper function to convert URL-friendly name back to potential business name matches
-const fromUrlFriendly = (urlName) => {
-  return urlName.replace(/_/g, ' ');
-};
-
-// Helper function to format duration
-const formatDuration = (minutes) => {
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  if (mins === 0) return `${hours} hour${hours > 1 ? 's' : ''}`;
-  return `${hours}h ${mins}min`;
-};
-
-// Helper function to get icon based on service type
-const getServiceIcon = (serviceType) => {
-  const type = serviceType?.toLowerCase() || '';
-  if (type.includes('massage') || type.includes('spa')) return '💆';
-  if (type.includes('training') || type.includes('fitness') || type.includes('gym')) return '💪';
-  if (type.includes('yoga') || type.includes('meditation')) return '🧘';
-  if (type.includes('nutrition') || type.includes('diet')) return '🥗';
-  if (type.includes('therapy') || type.includes('counseling')) return '💬';
-  return '✨'; // default icon
-};
-
-export default function EmbeddedBooking() {
-  const { businessName } = useParams(); // service business name
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const stripeAcctIdFromState = location.state?.stripeAcctId;
-  
-  const bookingOptionId = parseInt(searchParams.get('bookingOption'));
-  
-  const [service, setService] = useState(null);
-  const [bookingOptions, setBookingOptions] = useState([]);
-  const [bookingOption, setBookingOption] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [stripeAcctId, setStripeAcctId] = useState(stripeAcctIdFromState || null);
-  const [oneBookingLink, setOneBookingLink] = useState(false);
-  const [bookingLink, setBookingLink] = useState(null);
-  const [showBookingConfirmed, setShowBookingConfirmed] = useState(false);
-  const [bookingConfirmed, setBookingConfirmed] = useState(false);
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    classPackage: ''
-  });
-  const [classOfferings, setClassOfferings] = useState([]);
-  const iframeRef = useRef(null);
-
-  // Debug: Track when bookingLink changes
-  useEffect(() => {
-    console.log("bookingLink state updated to:", bookingLink);
-  }, [bookingLink]);
-
-  // Fetch service details
-  useEffect(() => {
-    fetchServiceDetails();
-    console.log("service details fetched");
-    console.log("bookingLink", bookingLink);
-    console.log("bookingOption", bookingOption);
-  }, [businessName]);
-
-  const fetchServiceDetails = async () => {
-    try {
-      setLoading(true);
-
-      const searchPattern = fromUrlFriendly(businessName);
-
-      const { data: providerData, error: providerError } = await supabase
-        .from('providers')
-        .select('*')
-        .ilike('business_name', searchPattern)
-        .single();
-
-      if (providerError) {
-        setError(`Error: ${providerError.message}`);
-        return;
-      }
-
-      let categories = [];
-      if (Array.isArray(providerData.business_type)) {
-        categories = providerData.business_type;
-      } else if (providerData.business_type) {
-        categories = [providerData.business_type];
-      }
-
-      setService({
-        id: providerData.id,
-        name: providerData.business_name || 'Wellness Service',
-        categories: categories,
-        description: providerData.short_summary || '',
-        address: providerData.address || '',
-        rating: providerData.rating || null,
-        reviewCount: providerData.num_reviews || 0,
-        takeRate: providerData.take_rate || null,
-        isApp: providerData.is_app != null,
-        appImageUrl: providerData.is_app || null,
-        widgetType: providerData.widget_type || null,
-      });
-      
-      // Set one_booking_link flag
-      setOneBookingLink(providerData.one_booking_link === true);
-      setBookingLink(providerData.booking_link || null);
-      
-      // Set stripe_acct_id from providerData if not already set from navigation state
-      if (!stripeAcctId && providerData.stripe_acct_id) {
-        setStripeAcctId(providerData.stripe_acct_id);
-      }
-
-      // Fetch booking options for this provider
-      const { data: servicesData, error: servicesError } = await supabase
-        .from('provider_services')
-        .select('*')
-        .eq('business_id', providerData.id);
-
-      if (servicesError) {
-        console.error('Error fetching services:', servicesError);
-        setBookingOptions([]);
-      } else {
-        // Transform services data to match expected format
-        const options = servicesData.map((service, index) => {
-          // Use service_name if available, otherwise fall back to service_type
-          // service_name should contain the actual service name like "Massage Therapy"
-          // service_type might be a generic category like "Wellness service"
-          const serviceName = service.service_name || service.service_type || 'Service';
-          console.log('Service data:', { 
-            service_name: service.service_name, 
-            service_type: service.service_type,
-            url: service.booking_link,
-            description: service.description,
-            using: serviceName 
-          });
-          return {
-          id: index + 1, // Use index as ID for URL params
-          serviceId: service.id, // Store actual service ID
-            name: serviceName,
-            serviceType: serviceName, // Use the actual service name for LMN form
-          duration: formatDuration(service.duration_in_mins || 60),
-          url: service.booking_link || '',
-          icon: getServiceIcon(service.service_type),
-          price: service.service_pricing || null,
-          description: service.description || null, // Store description for app type detection
-          };
-        });
-        
-        setBookingOptions(options);
-        
-        // Get the booking_link from provider_services for all providers
-        if (servicesData && servicesData.length > 0) {
-          // Use the first service's booking_link, or you could filter by a specific service
-          const linkValue = servicesData[0]?.booking_link || null;
-          console.log("Setting bookingLink to:", linkValue);
-          setBookingLink(linkValue);
-          // Note: bookingLink state won't update immediately - it updates on next render
-          // Check the useEffect above to see when it actually updates
-        }
-        
-        // Find the selected booking option
-        if (bookingOptionId) {
-          const selected = options.find(opt => opt.id === bookingOptionId);
-          setBookingOption(selected);
-        } else if (options.length >= 1) {
-          // If there's at least one booking option and no bookingOption param, auto-select the first one
-          // This handles the case when one_booking_link is true or when is_app is true
-          setBookingOption(options[0]);
-        }
-      }
-    } catch (err) {
-      setError(`Failed to fetch: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch class offerings when service is available
-  useEffect(() => {
-    const fetchClassOfferings = async () => {
-      if (service?.id) {
-        try {
-          console.log('Fetching class offerings for service_id:', service.id);
-          const { data, error } = await supabase
-            .from('class_offerings')
-            .select('*')
-            .eq('service_id', service.id);
-          
-          if (error) {
-            console.error('Error fetching class offerings:', error);
-            setClassOfferings([]);
-          } else {
-            console.log('Class offerings fetched:', data);
-            setClassOfferings(data || []);
-          }
-        } catch (err) {
-          console.error('Error fetching class offerings:', err);
-          setClassOfferings([]);
-        }
-      } else {
-        setClassOfferings([]);
-      }
-    };
-
-    fetchClassOfferings();
-  }, [service?.id]);
-
-
-  // Callback function when booking is detected
-  const onBookingComplete = () => {
-    console.log('Booking completed!');
-    
-    // Navigate to LMN form with service type, price, and duration
-    const serviceType = bookingOption?.serviceType || bookingOption?.name || 'Wellness service';
-    const servicePrice = bookingOption?.price || 80;
-    const duration = bookingOption?.duration || '60 min';
-    console.log('EmbeddedBooking - Navigating with serviceType:', serviceType);
-    console.log('EmbeddedBooking - bookingOption:', bookingOption);
-    navigate(`/book/${businessName}/lmn-form?service=${encodeURIComponent(serviceType)}&price=${servicePrice}&duration=${encodeURIComponent(duration)}`, {
-      state: { stripeAcctId: stripeAcctId }
-    });
-    
-    return true;
-  };
-
-  // Handle App Store badge click - generate UUID and append to URL
-  const handleAppStoreClick = (e, appUrl) => {
-    e.preventDefault();
-    
-    // Generate UUID
-    const uuid = crypto.randomUUID();
-    
-    // Get the booking URL from the passed appUrl or bookingOption
-    const baseUrl = appUrl || bookingOption?.url || '';
-    
-    console.log('Base URL before UUID append:', baseUrl);
-    
-    try {
-      // Append UUID as query parameter
-      const url = new URL(baseUrl);
-      url.searchParams.set('saga_referral_id', uuid);
-      const finalUrl = url.toString();
-      
-      console.log('App Store link clicked with referral UUID:', uuid);
-      console.log('Final URL with UUID:', finalUrl);
-      
-      // Open in new tab
-      window.open(finalUrl, '_blank', 'noopener,noreferrer');
-    } catch (error) {
-      // If URL is invalid, try appending as query string manually
-      console.warn('Invalid URL format, attempting manual append:', error);
-      const separator = baseUrl.includes('?') ? '&' : '?';
-      const urlWithUuid = `${baseUrl}${separator}saga_referral_id=${uuid}`;
-      
-      console.log('App Store link clicked with referral UUID:', uuid);
-      console.log('Final URL with UUID (manual append):', urlWithUuid);
-      
-      window.open(urlWithUuid, '_blank', 'noopener,noreferrer');
-    }
-  };
-
-  // Listen for messages from the iframe (Google Calendar)
-  // Check if user canceled checkout
-  useEffect(() => {
-    if (searchParams.get('canceled') === 'true') {
-      alert('Payment was canceled. You can try again when ready.');
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
-    const handleMessage = (event) => {
-      // Security: Only accept messages from Google Calendar domain
-      if (event.origin !== 'https://calendar.google.com') {
-        return;
-      }
-      
-      console.log('Message received from calendar:', event.data);
-      
-      // Check if the message indicates a booking completion
-      // Note: Google Calendar may not send these messages by default
-      // This is here for future compatibility or if they add this feature
-      if (event.data && typeof event.data === 'object') {
-        if (event.data.type === 'booking_complete' || 
-            event.data.action === 'appointment_booked' ||
-            event.data.status === 'confirmed') {
-          onBookingComplete();
-        }
-      }
-    };
-
-    // Add event listener
-    window.addEventListener('message', handleMessage);
-
-    // Cleanup
-    return () => {
-      window.removeEventListener('message', handleMessage);
-    };
-  }, []);
-
-  // Monitor iframe load events
-  const handleIframeLoad = () => {
-    console.log('Calendar iframe loaded');
-    
-    // Try to detect if the URL changed (limited by CORS)
-    try {
-      if (iframeRef.current && iframeRef.current.contentWindow) {
-        // This will likely fail due to CORS, but we try anyway
-        const iframeUrl = iframeRef.current.contentWindow.location.href;
-        console.log('Iframe URL:', iframeUrl);
-        
-        // If the URL contains a confirmation parameter, consider it a success
-        if (iframeUrl.includes('confirmed') || iframeUrl.includes('success')) {
-          onBookingComplete();
-        }
-      }
-    } catch (e) {
-      // Expected to fail due to CORS - this is normal
-      console.log('Cannot access iframe URL (CORS protected)');
-    }
-  };
-
+export default function EmbeddedBookingView({
+  service,
+  bookingOption,
+  bookingOptions,
+  loading,
+  error,
+  oneBookingLink,
+  bookingLink,
+  bookingConfirmed,
+  showBookingConfirmed,
+  formData,
+  classOfferings,
+  iframeRef,
+  businessName,
+  navigate,
+  onBookingComplete,
+  onAppStoreClick,
+  onIframeLoad,
+  onShowBookingConfirmed,
+  onCloseBookingConfirmed,
+  onFormDataChange,
+  onBookingConfirmSubmit,
+}) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -340,8 +37,6 @@ export default function EmbeddedBooking() {
     );
   }
 
-  // For app services, bookingOption might not be set if multiple services exist
-  // But we can still render the page with the app badges
   if (!service?.isApp && !bookingOption) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -365,7 +60,7 @@ export default function EmbeddedBooking() {
               </div>
               <h1 className="text-xl font-bold text-gray-900 hidden sm:block">Saga Health</h1>
             </button>
-            
+
             <button
               onClick={() => navigate(`/book/${businessName}`)}
               className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-2"
@@ -387,7 +82,7 @@ export default function EmbeddedBooking() {
             <div className="flex-1">
               <p className="text-sm font-semibold text-amber-900">
                  ⚠️ <span className="ml-1">
-                   {oneBookingLink 
+                   {oneBookingLink
                      ? 'Important: Your purchase is NOT confirmed until you click "Confirm booking" at the bottom of this page'
                      : 'Important: Your purchase is NOT confirmed until you click "Get your LMN now" or "Pay for my appointment" at the bottom of this page'
                    }
@@ -404,12 +99,6 @@ export default function EmbeddedBooking() {
             <div className="flex items-center gap-4 text-gray-600">
               <span className="text-2xl">{bookingOption.icon}</span>
               <span className="text-lg font-medium">{bookingOption.name}</span>
-              {bookingOption.price && (
-                <>
-                  <span className="text-gray-400">•</span>
-                  <span className="text-emerald-600 font-semibold">${bookingOption.price}</span>
-                </>
-              )}
             </div>
           )}
         </div>
@@ -433,7 +122,7 @@ export default function EmbeddedBooking() {
           <div className="relative rounded-2xl overflow-hidden" style={{ minHeight: '400px' }}>
             {/* Background image */}
             {service?.appImageUrl && (
-              <div 
+              <div
                 className="absolute inset-0 bg-contain bg-center bg-no-repeat"
                 style={{
                   backgroundImage: `url(${service.appImageUrl})`,
@@ -443,7 +132,7 @@ export default function EmbeddedBooking() {
             )}
             {/* Gray overlay */}
             <div className="absolute inset-0 bg-gray-500 bg-opacity-40" />
-            
+
             {/* Booking confirmation overlay - only show when booking not confirmed and is_app is set */}
             {!bookingConfirmed && service?.isApp && oneBookingLink && (
               <div className="absolute inset-0 flex items-center justify-center z-20">
@@ -460,7 +149,7 @@ export default function EmbeddedBooking() {
                     <button
                       onClick={() => {
                         if (!bookingConfirmed) {
-                          setShowBookingConfirmed(true);
+                          onShowBookingConfirmed();
                         }
                       }}
                       disabled={bookingConfirmed}
@@ -490,25 +179,22 @@ export default function EmbeddedBooking() {
                 </div>
               </div>
             )}
-            
+
             {/* App Store badges - only show when booking is confirmed */}
             {bookingConfirmed && (() => {
-              // Filter app services by description
               const appleService = bookingOptions.find(opt => opt.description === 'apple');
               const googleService = bookingOptions.find(opt => opt.description === 'google');
-              
-              // If multiple services exist, show badges based on description
-              // If only one service exists and it's an app, show it as Apple (fallback)
+
               if (bookingOptions.length > 1) {
                 return (
                   <div className="relative flex flex-col sm:flex-row items-center justify-center h-full min-h-[400px] py-12 z-10 gap-4">
                     {appleService && (
                       <button
-                        onClick={(e) => handleAppStoreClick(e, appleService.url)}
+                        onClick={(e) => onAppStoreClick(e, appleService.url)}
                         className="inline-block hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-0 p-0 z-10"
                       >
-                        <img 
-                          src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83&releaseDate=1276560000" 
+                        <img
+                          src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83&releaseDate=1276560000"
                           alt="Download on the App Store"
                           className="h-20 w-auto"
                           style={{ height: '80px', width: 'auto' }}
@@ -517,11 +203,11 @@ export default function EmbeddedBooking() {
                     )}
                     {googleService && (
                       <button
-                        onClick={(e) => handleAppStoreClick(e, googleService.url)}
+                        onClick={(e) => onAppStoreClick(e, googleService.url)}
                         className="inline-block hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-0 p-0 z-10"
                       >
-                        <img 
-                          src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" 
+                        <img
+                          src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"
                           alt="Get it on Google Play"
                           className="h-20 w-auto"
                           style={{ height: '115px', width: 'auto' }}
@@ -531,15 +217,14 @@ export default function EmbeddedBooking() {
                   </div>
                 );
               } else if (bookingOptions.length === 1 && bookingOption) {
-                // Single app service - show Apple badge as fallback
                 return (
                   <div className="relative flex items-center justify-center h-full min-h-[400px] py-12 z-10">
                     <button
-                      onClick={(e) => handleAppStoreClick(e, bookingOption.url)}
+                      onClick={(e) => onAppStoreClick(e, bookingOption.url)}
                       className="inline-block hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-0 p-0 z-10"
                     >
-                      <img 
-                        src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83&releaseDate=1276560000" 
+                      <img
+                        src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83&releaseDate=1276560000"
                         alt="Download on the App Store"
                         className="h-20 w-auto"
                         style={{ height: '80px', width: 'auto' }}
@@ -552,25 +237,25 @@ export default function EmbeddedBooking() {
             })()}
           </div>
         ) : bookingOption ? (
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-          <iframe
-            ref={iframeRef}
-            {...(service?.widgetType === 'momence' && bookingLink ? {
-              srcdoc: bookingOption.url
-            } : {
-              src: bookingOption.url
-            })}
-            className="w-full h-[800px] border-0"
-            title={`Book ${bookingOption.name}`}
-            onLoad={handleIframeLoad}
-          />
-        </div>
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <iframe
+              ref={iframeRef}
+              {...(service?.widgetType === 'momence' && bookingLink ? {
+                srcdoc: bookingOption.url
+              } : {
+                src: bookingOption.url
+              })}
+              className="w-full h-[800px] border-0"
+              title={`Book ${bookingOption.name}`}
+              onLoad={onIframeLoad}
+            />
+          </div>
         ) : null}
 
         {/* Payments Section */}
         <div className={`mt-6 ${
-          oneBookingLink 
-            ? '' 
+          oneBookingLink
+            ? ''
             : 'bg-white rounded-2xl shadow-lg p-6'
         }`}>
           <div>
@@ -591,7 +276,7 @@ export default function EmbeddedBooking() {
                       <button
                         onClick={() => {
                           if (!bookingConfirmed) {
-                            setShowBookingConfirmed(true);
+                            onShowBookingConfirmed();
                           }
                         }}
                         disabled={bookingConfirmed}
@@ -662,7 +347,7 @@ export default function EmbeddedBooking() {
                     <button
                       onClick={() => {
                         if (!bookingConfirmed) {
-                          setShowBookingConfirmed(true);
+                          onShowBookingConfirmed();
                         }
                       }}
                       disabled={bookingConfirmed}
@@ -724,11 +409,11 @@ export default function EmbeddedBooking() {
       {/* Booking Confirmed Form Popup */}
       {showBookingConfirmed && (
         <>
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={() => setShowBookingConfirmed(false)}></div>
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={onCloseBookingConfirmed}></div>
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full transform transition-all relative">
               <button
-                onClick={() => setShowBookingConfirmed(false)}
+                onClick={onCloseBookingConfirmed}
                 className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
                 aria-label="Close"
               >
@@ -746,71 +431,7 @@ export default function EmbeddedBooking() {
                   <h3 className="text-2xl font-bold text-gray-900 mb-2">Booking Confirmed!</h3>
                   <p className="text-gray-600 mb-4">Please provide your details to complete the booking.</p>
                 </div>
-                <form onSubmit={async (e) => {
-                  e.preventDefault();
-                  
-                  // Mark booking as confirmed
-                  setBookingConfirmed(true);
-                  
-                  // Increment booking_count in Supabase
-                  if (service?.id) {
-                    try {
-                      // Fetch current booking_count
-                      const { data: currentData, error: fetchError } = await supabase
-                        .from('providers')
-                        .select('booking_count')
-                        .eq('id', service.id)
-                        .single();
-                      
-                      if (!fetchError && currentData) {
-                        const newCount = (currentData.booking_count || 0) + 1;
-                        
-                        // Update booking_count
-                        await supabase
-                          .from('providers')
-                          .update({ booking_count: newCount })
-                          .eq('id', service.id);
-                      }
-                    } catch (err) {
-                      console.error('Error updating booking count:', err);
-                    }
-                  }
-
-                  // Save form data to client_referrals table
-                  if (service?.id && formData.firstName && formData.lastName) {
-                    try {
-                      // Get date in EST timezone (America/New_York handles EST/EDT automatically)
-                      const now = new Date();
-                      const estDateString = now.toLocaleString('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
-                      const [month, day, year] = estDateString.split('/');
-                      const today = `${year}-${month}-${day}`; // Format as YYYY-MM-DD
-                      // Use class/package selected if available, otherwise fall back to service name
-                      const serviceName = formData.classPackage || bookingOption?.name || bookingOption?.serviceType || service?.name || 'Wellness service';
-                      
-                      const { error: referralError } = await supabase
-                        .from('client_referrals')
-                        .insert({
-                          first_name: formData.firstName,
-                          last_name: formData.lastName,
-                          email: formData.email || null,
-                          date: today,
-                          service: serviceName,
-                          provider_id: service.id
-                        });
-                      
-                      if (referralError) {
-                        console.error('Error saving client referral:', referralError);
-                      } else {
-                        console.log('Client referral saved successfully');
-                      }
-                    } catch (err) {
-                      console.error('Error saving client referral:', err);
-                    }
-                  }
-                  
-                  // Close the popup
-                  setShowBookingConfirmed(false);
-                }} className="space-y-4">
+                <form onSubmit={onBookingConfirmSubmit} className="space-y-4">
                   <div>
                     <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
                       First Name *
@@ -820,7 +441,7 @@ export default function EmbeddedBooking() {
                       id="firstName"
                       required
                       value={formData.firstName}
-                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                      onChange={(e) => onFormDataChange({ firstName: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                       placeholder="Enter your first name"
                     />
@@ -834,7 +455,7 @@ export default function EmbeddedBooking() {
                       id="lastName"
                       required
                       value={formData.lastName}
-                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                      onChange={(e) => onFormDataChange({ lastName: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                       placeholder="Enter your last name"
                     />
@@ -847,7 +468,7 @@ export default function EmbeddedBooking() {
                       type="email"
                       id="email"
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      onChange={(e) => onFormDataChange({ email: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                       placeholder="Enter your email"
                     />
@@ -860,7 +481,7 @@ export default function EmbeddedBooking() {
                       <select
                         id="classPackage"
                         value={formData.classPackage}
-                        onChange={(e) => setFormData({ ...formData, classPackage: e.target.value })}
+                        onChange={(e) => onFormDataChange({ classPackage: e.target.value })}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900"
                       >
                         <option value="" style={{ color: '#6b7280' }}>Select a class or package...</option>
@@ -875,7 +496,7 @@ export default function EmbeddedBooking() {
                         type="text"
                         id="classPackage"
                         value={formData.classPackage}
-                        onChange={(e) => setFormData({ ...formData, classPackage: e.target.value })}
+                        onChange={(e) => onFormDataChange({ classPackage: e.target.value })}
                         placeholder="Enter class or package name..."
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900"
                       />
@@ -896,4 +517,3 @@ export default function EmbeddedBooking() {
     </div>
   );
 }
-

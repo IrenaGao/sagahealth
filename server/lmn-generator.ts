@@ -16,7 +16,7 @@ dotenv.config({ path: join(__dirname, "../.env") });
 
 // Environment variables
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-3-7-sonnet-latest";
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
 
 if (!ANTHROPIC_API_KEY) {
   throw new Error("ANTHROPIC_API_KEY environment variable is required");
@@ -62,19 +62,25 @@ Your goal is to justify, in a formal, concise, professional clinical tone, why t
 
 IMPORTANT: You have access to a search_tool that can find relevant ICD-10 codes and medical conditions. Use this tool to search for medical conditions mentioned in the patient's data to get accurate ICD codes and condition categories.
 
+OUTPUT FORMAT
+Your output must be a single JSON object with exactly these six fields. Every field must be a plain string except icd_codes which is an array of strings. Do not nest objects inside any field.
+
+{
+  "reported_diagnosis": "Anxiety (F41.9), Chronic Pain (G89.29)",
+  "treatment": "Plain string describing the treatment...",
+  "clinical_rationale": "Plain string describing the rationale...",
+  "role_the_service_provides": "Plain string describing the role...",
+  "conclusion": "Plain string conclusion..."
+}
+
+Do not output anything outside of this JSON object. Do not wrap field values in nested objects.
+
 Rules
+* Use the search_tool to find the ICD-10 code(s) for the patient's diagnosed conditions. Put the result as a plain string in reported_diagnosis (e.g. "Anxiety (F41.9)") and as an array in icd_codes (e.g. ["F41.9"]).
 * Always generate a complete LMN even if the medical reasoning is limited or less direct. Never skip or leave sections blank.
-* Do not include binary or Base64 PDF data.
 * Ground every claim in the provided intake data or policy excerpts when possible.
 * Leave out the physician name, signature, and date.
 * If specific supporting details are missing, make the best plausible case from the information available, while still maintaining a professional clinical tone.
-* For any medical conditions referenced in the LMN, use the search_tool to find the corresponding ICD-10 codes and add these fields to your JSON output in the Reported Diagnosis section only:
-  * "icd_codes": array of ICD-10 codes (e.g., ["F41.9", "J45.9"])
-  * "condition": array of condition categories (e.g., ["Anxiety", "Asthma"])
-  * make sure it is in the form condition ([code]), such as "Anxiety (F41.9)"
-* Output must strictly follow the LetterSpec JSON schema with the additional fields above. Do not output anything else outside of the JSON itself.
-* Only include the following five fields in your output: reported_diagnosis, treatment, clinical_rationale, role_the_service_provides, and conclusion. Do not include any other fields.
-* Keep reported diagnosis as only the name of the condition, so just a couple words.
 * In the clinical rationale section, reference at least one published study by their PMID and abbreviated citation that justifies the service to be clinically necessary for the treatment.
 * In the conclusion, end with "medically necessary as part of the patient's comprehensive treatment plan."
 * Keep the role the service plays in helping with the patient's health to one sentence.
@@ -127,9 +133,18 @@ export async function generateLMN(userInput: string): Promise<string> {
     // Run the agent
     const result = await lmnGenerator.invoke(agentInput);
     
-    // Extract the final message content
+    // Extract the final message content as a plain string
     const finalMessage = result.messages[result.messages.length - 1];
-    return finalMessage.content as string;
+    const content = finalMessage.content;
+    if (typeof content === 'string') {
+      return content;
+    } else if (Array.isArray(content)) {
+      return content
+        .filter((block: any) => block.type === 'text')
+        .map((block: any) => block.text)
+        .join('');
+    }
+    return String(content);
     
   } catch (error) {
     if (error instanceof Error) {

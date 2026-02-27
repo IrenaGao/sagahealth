@@ -26,43 +26,7 @@ export default function ServiceDetails() {
     try {
       setLoading(true);
 
-      // Check if provider data was passed through navigation state (for Google Places providers)
-      const providerDataFromState = window.history?.state?.usr?.providerData || location.state?.providerData;
-
-      if (providerDataFromState) {
-        // Use provider data from navigation state (Google Places provider)
-        console.log('ServiceDetails: Using provider data from navigation state:', providerDataFromState);
-
-        let categories = [];
-        if (Array.isArray(providerDataFromState.business_type)) {
-          categories = providerDataFromState.business_type;
-        } else if (providerDataFromState.business_type) {
-          categories = [providerDataFromState.business_type];
-        } else if (providerDataFromState.categories) {
-          categories = providerDataFromState.categories;
-        } else {
-          categories = ['Other'];
-        }
-
-        const mappedData = {
-          id: providerDataFromState.id,
-          name: providerDataFromState.name || 'Unnamed Business',
-          categories: categories,
-          description: providerDataFromState.description || '',
-          address: providerDataFromState.address || '',
-          rating: providerDataFromState.rating || null,
-          reviewCount: providerDataFromState.reviewCount || 0,
-          image: providerDataFromState.image || '',
-          bookingSystemEnabled: providerDataFromState.bookingSystemEnabled !== false,
-          bookingLink: providerDataFromState.bookingLink || '',
-        };
-
-        setServiceDetails(mappedData);
-        setLoading(false);
-        return;
-      }
-
-      // Otherwise, fetch from database (regular providers)
+      // Fetch from database (only Supabase providers navigate here)
       const searchPattern = buildIlikePattern(businessSlug);
       const { data, error } = await supabase
         .from('providers')
@@ -93,7 +57,6 @@ export default function ServiceDetails() {
           address: data.address || '',
           image: data.image || 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=1200&h=600&fit=crop',
           stripeAcctId: data.stripe_acct_id || null,
-          bookingSystemEnabled: data.booking_system !== false,
           oneBookingLink: data.one_booking_link === true,
           isApp: data.is_app != null,
         };
@@ -102,7 +65,6 @@ export default function ServiceDetails() {
             replace: true,
             state: {
               stripeAcctId: data.stripe_acct_id || null,
-              bookingSystemEnabled: true,
             },
           });
           return;
@@ -119,19 +81,11 @@ export default function ServiceDetails() {
   };
 
   const handleBookingClick = () => {
-    if (service.bookingSystemEnabled === false) {
-      navigate(`/book/${businessSlug}/lmn-form`, {
-        state: {
-          stripeAcctId: service.stripeAcctId,
-          bookingSystemEnabled: false,
-        },
-      });
-    } else if (service.oneBookingLink === true) {
+    if (service.oneBookingLink === true) {
       // If one_booking_link is true, skip booking page and go directly to schedule
       navigate(`/book/${businessSlug}/schedule`, {
         state: {
           stripeAcctId: service.stripeAcctId,
-          bookingSystemEnabled: true,
         },
       });
     } else {

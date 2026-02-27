@@ -6,7 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 import { generateLMN } from './lmn-generator.js';
 import { generateLMNPDFBuffer, generateServiceReceiptPDF } from './utils/pdfGenerator.js';
 import { createSignatureRequest, createSignwellWebhook, handleSignwellWebhook } from './utils/signwellService.js';
-import { createPaymentIntent, createCheckoutSession } from './utils/stripeService.js';
+import { createCheckoutSession } from './utils/stripeService.js';
 import stripe from './stripe.js';
 import * as dotenv from 'dotenv';
 import { join, dirname } from 'path';
@@ -133,58 +133,26 @@ app.post('/api/signwell/create-webhook', async (req, res) => {
   }
 });
 
-// Stripe payment endpoints
-app.post('/api/create-payment-intent', async (req, res) => {
-  try {
-    const { amount, currency = 'usd', metadata = {}, stripeAcctId, paymentOption, servicePrice, receiptEmail } = req.body;
-    
-    const result = await createPaymentIntent({
-      amount,
-      currency,
-      metadata,
-      stripeAcctId,
-      paymentOption,
-      servicePrice,
-      receiptEmail,
-    });
-
-    res.json(result);
-  } catch (error: any) {
-    console.error('Error creating payment intent:', error);
-    console.error('Error details:', error.message, error.type, error.code);
-    res.status(500).json({ 
-      error: 'Failed to create payment intent',
-      details: error.message 
-    });
-  }
-});
-
 // Stripe Checkout endpoint
 app.post('/api/create-checkout-session', async (req, res) => {
   try {
-    const { 
-      amount, 
-      currency = 'usd', 
-      metadata = {}, 
-      stripeAcctId, 
-      paymentOption, 
-      servicePrice, 
+    const {
+      amount,
+      currency = 'usd',
+      metadata = {},
       serviceName,
-      duration,
       firstHealthCondition,
       businessName,
       businessAddress,
-      takeRate,
       customerFirstName,
       customerLastName,
-      receiptEmail,
       successUrl,
       cancelUrl
     } = req.body;
-    
+
     if (!successUrl || !cancelUrl) {
-      return res.status(400).json({ 
-        error: 'successUrl and cancelUrl are required' 
+      return res.status(400).json({
+        error: 'successUrl and cancelUrl are required'
       });
     }
 
@@ -192,18 +160,12 @@ app.post('/api/create-checkout-session', async (req, res) => {
       amount,
       currency,
       metadata,
-      stripeAcctId,
-      paymentOption,
-      servicePrice,
       serviceName,
-      duration,
       firstHealthCondition,
       businessName,
       businessAddress,
-      takeRate,
       customerFirstName,
       customerLastName,
-      receiptEmail,
       successUrl,
       cancelUrl,
     });
@@ -246,220 +208,16 @@ app.get('/api/checkout-session', async (req, res) => {
       }
     }
 
-    const paymentIntent = session.payment_intent;
-    const paymentIntentObj = typeof paymentIntent === 'object' ? paymentIntent as Stripe.PaymentIntent : null;
-    const paymentIntentId = paymentIntentObj?.id || paymentIntent;
-
-    const formatCardDescription = (brand?: string | null, last4?: string | null) => {
-      if (!last4) return undefined;
-      const normalizedBrand = brand ? `${brand.charAt(0).toUpperCase()}${brand.slice(1)}` : 'Card';
-      return `${normalizedBrand} **** ${last4}`;
-    };
-
-    let paymentMethodDescription: string | undefined;
-
-    if (paymentIntentObj) {
-      const paymentMethodValue = paymentIntentObj.payment_method;
-
-      if (paymentMethodValue && typeof paymentMethodValue === 'object' && 'card' in paymentMethodValue) {
-        const card = paymentMethodValue.card as Stripe.PaymentMethod.Card | null | undefined;
-        paymentMethodDescription = formatCardDescription(card?.brand, card?.last4);
-    }
-
-      if (!paymentMethodDescription) {
-        const paymentMethodId = typeof paymentMethodValue === 'string'
-          ? paymentMethodValue
-          : paymentMethodValue?.id;
-
-        if (paymentMethodId) {
-          try {
-            const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
-            if (paymentMethod.card) {
-              paymentMethodDescription = formatCardDescription(paymentMethod.card.brand, paymentMethod.card.last4);
-            }
-          } catch (pmError) {
-            console.error('Failed to retrieve payment method details for receipt:', pmError);
-          }
-        }
-      }
-    }
-
-    // Extract paymentOption from metadata (could be in session metadata or payment intent metadata)
-    const paymentIntentMetadata = typeof paymentIntent === 'object' && paymentIntent?.metadata ? paymentIntent.metadata : {};
-    const paymentOption = metadata.paymentOption || paymentIntentMetadata.paymentOption || 'lmn-only';
-
-    // Generate service receipt PDF only if a service is paid for (lmn-and-service or service-only)
-    // Do NOT generate receipt for lmn-only payments
-    let serviceReceiptPDF: string | null = null;
-    console.log('Checking receipt generation conditions:');
-    console.log('  paymentOption:', paymentOption);
-    console.log('  payment_status:', session.payment_status);
-    console.log('  formData exists:', !!formData);
-    
-    const shouldGenerateReceipt = (paymentOption === 'lmn-and-service' || paymentOption === 'service-only') 
-      && session.payment_status === 'paid';
-    
-    if (shouldGenerateReceipt) {
-      try {
-        console.log('Generating service receipt PDF...');
-        // Extract service details from metadata or formData
-        const serviceName = (metadata.serviceName as string) || formData?.desiredProduct || 'Service';
-        const duration = (metadata.duration as string) || '60 min';
-        const firstHealthCondition = (metadata.firstHealthCondition as string) || (formData?.diagnosedConditions?.[0]) || null;
-        const businessName = (metadata.businessName as string) || formData?.businessName || 'Provider';
-        const businessAddress = (metadata.businessAddress as string) || '';
-        
-        // Calculate service price: for lmn-and-service, subtract $20 LMN fee; for service-only, use full amount
-        let servicePrice = 0;
-        if (paymentOption === 'service-only') {
-          servicePrice = session.amount_total ? session.amount_total / 100 : 0;
-        } else if (paymentOption === 'lmn-and-service') {
-          servicePrice = metadata.servicePrice ? parseFloat(metadata.servicePrice as string) : (session.amount_total ? (session.amount_total - 2000) / 100 : 0);
-        }
-        
-        console.log('Receipt data:', {
-          serviceName,
-          duration,
-          firstHealthCondition,
-          businessName,
-          businessAddress,
-          servicePrice,
-          paymentOption,
-        });
-        
-        // Format product name
-        let productName = serviceName;
-        if (duration && serviceName && firstHealthCondition) {
-          productName = `${duration} ${serviceName} for ${firstHealthCondition}`;
-        } else if (duration && serviceName) {
-          productName = `${duration} ${serviceName}`;
-        }
-
-        // Get customer name from Stripe Checkout customer_details
-        let customerName = 'Customer';
-        if (session.customer_details?.name) {
-          customerName = session.customer_details.name;
-        } else if (formData?.firstName && formData?.lastName) {
-          // Fallback to formData if customer_details.name is not available
-          customerName = `${formData.firstName} ${formData.lastName}`;
-        } else if (session.customer_details?.email) {
-          // Extract name from email as last resort
-          const emailName = session.customer_details.email.split('@')[0];
-          customerName = emailName.charAt(0).toUpperCase() + emailName.slice(1);
-        }
-        
-        // Ensure we have an email from Stripe Checkout
-        if (!session.customer_details?.email) {
-          console.warn('No customer email found in Stripe Checkout session - cannot send receipt');
-        }
-
-        serviceReceiptPDF = await generateServiceReceiptPDF({
-          customerName: customerName,
-          customerEmail: session.customer_email || undefined,
-          productName: productName,
-          businessName: businessName,
-          businessAddress: businessAddress,
-          amount: servicePrice,
-          currency: session.currency?.toUpperCase() || 'USD',
-          paymentDate: new Date(),
-          paymentIntentId: paymentIntentId as string,
-          invoiceNumber: paymentIntentId as string,
-          receiptNumber: session.id,
-          paymentMethod: paymentMethodDescription || 'Card',
-        });
-
-        console.log('Service receipt PDF generated successfully, length:', serviceReceiptPDF?.length || 0);
-
-        // Email the receipt to the customer using email from Stripe Checkout
-        // Check if receipt has already been sent (idempotency check)
-        const receiptSentFlag = metadata.receiptEmailSent === 'true' || paymentIntentMetadata.receiptEmailSent === 'true';
-        
-        if (receiptSentFlag) {
-          console.log('Service receipt already sent for this payment - skipping duplicate email');
-        } else {
-          // Check multiple possible locations for the email
-          let recipientEmail = session.customer_details?.email || 
-                             (typeof session.customer === 'object' && session.customer ? (session.customer as Stripe.Customer).email : null);
-          
-          console.log('Email lookup for receipt:', {
-            customer_email: session.customer_email,
-            customer_details_email: session.customer_details?.email,
-            customer_object_email: typeof session.customer === 'object' && session.customer ? (session.customer as Stripe.Customer)?.email : 'N/A (not expanded)',
-            final_recipientEmail: recipientEmail
-          });
-          
-          if (recipientEmail && process.env.RESEND_API_KEY) {
-            try {
-              // Mark receipt as sent in metadata FIRST to prevent race conditions
-              // This acts as a lock to prevent duplicate sends
-              try {
-                await stripe.checkout.sessions.update(session.id, {
-                  metadata: {
-                    ...metadata,
-                    receiptEmailSent: 'true',
-                  },
-                });
-                console.log('Marked receipt as sent in session metadata (before sending email)');
-              } catch (updateError: any) {
-                console.error('Failed to update session metadata:', updateError);
-                // If we can't update metadata, check again to see if another process already set it
-                const updatedSession = await stripe.checkout.sessions.retrieve(session.id);
-                if (updatedSession.metadata?.receiptEmailSent === 'true') {
-                  console.log('Receipt already marked as sent by another process - skipping email');
-                  return; // Exit early to prevent duplicate
-                }
-              }
-              
-              // Now send the email
-              const resend = new Resend(process.env.RESEND_API_KEY);
-              const receiptBuffer = Buffer.from(serviceReceiptPDF, 'base64');
-              
-              await resend.emails.send({
-                from: 'Saga Health <support@mysagahealth.com>',
-                to: recipientEmail,
-                subject: 'Your Appointment Receipt from Saga Health',
-                text: `Dear ${customerName},\n\nThank you for your purchase! Please find your appointment receipt attached to this email, which you can then use to submit to your HSA administrator for reimbursement.\n\nIf you have any questions, please don't hesitate to reach out.\n\nSincerely,\nThe Saga Health Team`,
-                attachments: [
-                  {
-                    filename: `Service_Receipt_${customerName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`,
-                    content: receiptBuffer.toString('base64'),
-                    contentType: 'application/pdf',
-                  },
-                ],
-              });
-              console.log(`Service receipt emailed successfully to ${recipientEmail}`);
-            } catch (emailError: any) {
-              console.error('Failed to email service receipt:', emailError);
-              // If email fails, we could optionally remove the flag, but it's safer to keep it
-              // to prevent retry loops
-            }
-          } else if (!recipientEmail) {
-            console.warn('No email address available to send service receipt');
-          } else if (!process.env.RESEND_API_KEY) {
-            console.warn('RESEND_API_KEY is not set; skipping receipt email');
-          }
-        }
-      } catch (error: any) {
-        console.error('Error generating service receipt PDF:', error);
-        console.error('Error stack:', error.stack);
-        // Continue without receipt PDF if generation fails
-      }
-    } else {
-      console.log('Receipt generation skipped - conditions not met');
-    }
-
     res.json({
       sessionId: session.id,
-      paymentIntentId: paymentIntentId,
       amount: session.amount_total,
       currency: session.currency,
-      payment_status: session.payment_status, // Use snake_case for consistency
-      paymentStatus: session.payment_status, // Also include camelCase for backward compatibility
-      customerEmail: session.customer_email,
-      paymentOption: paymentOption,
+      payment_status: session.payment_status,
+      paymentStatus: session.payment_status,
+      customerEmail: session.customer_details?.email || session.customer_email,
+      paymentOption: metadata.paymentOption || 'lmn-only',
       formData: formData,
-      metadata: metadata, // Include metadata for Google Analytics tracking
-      serviceReceiptPDF: serviceReceiptPDF, // Include receipt PDF if generated
+      metadata: metadata,
     });
   } catch (error: any) {
     console.error('Error retrieving checkout session:', error);
@@ -506,7 +264,6 @@ app.post('/api/generate-lmn', async (req, res) => {
     const {
       firstName,
       lastName,
-      email: emailFromBody,
       age,
       sex,
       hsaProvider,
@@ -519,58 +276,26 @@ app.post('/api/generate-lmn', async (req, res) => {
       desiredProduct,
       businessName,
       paymentProcessed,
-      paymentIntentId
+      sessionId,
     } = req.body;
 
-    // Get email from Stripe checkout session if not provided in body
-    let email = emailFromBody;
-    if (!email && paymentIntentId) {
+    // Fetch email from Stripe checkout session
+    let email: string | null = null;
+    let stripePaymentIntentId: string | null = null;
+    if (sessionId) {
       try {
-        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
-          expand: ['customer']
-        });
-        
-        // Try to get email from customer details
-        if (paymentIntent.customer) {
-          const customer = typeof paymentIntent.customer === 'object' 
-            ? paymentIntent.customer as Stripe.Customer 
-            : await stripe.customers.retrieve(paymentIntent.customer as string);
-          if (customer && typeof customer === 'object' && 'email' in customer) {
-            email = customer.email || null;
-            console.log('Retrieved email from Stripe customer:', email);
-          }
-        }
-        
-        // If still no email, try to get from receipt_email
-        if (!email && paymentIntent.receipt_email) {
-          email = paymentIntent.receipt_email;
-          console.log('Retrieved email from payment intent receipt_email:', email);
-        }
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        email = session.customer_details?.email || null;
+        stripePaymentIntentId = typeof session.payment_intent === 'string'
+          ? session.payment_intent
+          : session.payment_intent?.id || null;
+        console.log('Retrieved email from Stripe session:', email);
       } catch (stripeError) {
-        console.error('Error retrieving email from Stripe:', stripeError);
+        console.error('Error retrieving email from Stripe session:', stripeError);
       }
     }
 
-    // Check if LMN has already been generated for this payment (idempotency using Stripe metadata)
-    if (paymentIntentId) {
-      try {
-        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-        const lmnGenerated = paymentIntent.metadata?.lmnGenerated === 'true';
-        
-        if (lmnGenerated) {
-          console.log(`LMN already generated for payment ${paymentIntentId}, skipping duplicate generation`);
-          return res.status(200).json({ 
-            message: 'LMN already generated for this payment',
-            paymentIntentId 
-          });
-        }
-      } catch (stripeError) {
-        console.error('Error checking Stripe metadata for existing LMN:', stripeError);
-        // Continue with generation if check fails
-      }
-    }
-
-    // Validate required fields with detailed logging
+    // Validate required fields
     const missingFields: string[] = [];
     if (!firstName) missingFields.push('firstName');
     if (!lastName) missingFields.push('lastName');
@@ -581,18 +306,7 @@ app.post('/api/generate-lmn', async (req, res) => {
     
     if (missingFields.length > 0) {
       console.error('Missing required fields for LMN generation:', missingFields);
-      console.error('Received data:', {
-        firstName: firstName || 'MISSING',
-        lastName: lastName || 'MISSING',
-        email: email || 'MISSING',
-        age: age || 'MISSING',
-        hsaProvider: hsaProvider || 'MISSING',
-        state: state || 'MISSING',
-        paymentIntentId: paymentIntentId || 'MISSING',
-        hasFormData: !!req.body,
-        bodyKeys: Object.keys(req.body || {})
-      });
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Missing required fields',
         details: `Missing fields: ${missingFields.join(', ')}. Required: firstName, lastName, email, age, hsaProvider, and state`
       });
@@ -635,6 +349,7 @@ app.post('/api/generate-lmn', async (req, res) => {
 
     // Generate the LMN
     const lmnResult = await generateLMN(JSON.stringify(lmnInput));
+    console.log('Raw LMN result from Claude:', lmnResult);
 //     const lmnResult = `Based on my searches, I'll now create a Letter of Medical Necessity for massage therapy:
 
 // \`\`\`json
@@ -649,9 +364,6 @@ app.post('/api/generate-lmn', async (req, res) => {
 
     // Log the generated LMN result
     console.log('\n========== LMN GENERATION COMPLETE ==========');
-    console.log('Generated LMN Result:');
-    // console.log(lmnResult);
-    console.log('=============================================\n');
 
     // Find eligible nurse practitioners based on state
     let selectedNurse: { id: any; first_name: string; last_name: string; email: string } | null = null;
@@ -699,7 +411,7 @@ app.post('/api/generate-lmn', async (req, res) => {
     console.log('Generating PDF...');
     const pdfBase64 = await generateLMNPDFBuffer(lmnResult, {
       name: `${firstName} ${lastName}`,
-      email,
+      email: email || '',
       hsaProvider,
       diagnosedConditions: diagnosedConditions || [],
       desiredProduct: desiredProduct || 'Wellness service/product',
@@ -712,8 +424,8 @@ app.post('/api/generate-lmn', async (req, res) => {
 
     // Send to SignWell for signature
     console.log('Sending to SignWell for e-signature...');
-    const recipientEmail = selectedNurse?.email || 'irenagao2013@gmail.com';
-    // const recipientEmail = 'irenagao2013@gmail.com';
+    // const recipientEmail = selectedNurse?.email || 'irenagao2013@gmail.com';
+    const recipientEmail = 'irenagao2013@gmail.com';
     console.log("RECIPIENT EMAIL", recipientEmail);
     // Use patient's name from LMN form for recipientName
     const recipientName = `${firstName} ${lastName}`;
@@ -729,23 +441,20 @@ app.post('/api/generate-lmn', async (req, res) => {
 
     console.log('SignWell signature request created:', signwellResult);
 
-    // Update Stripe payment intent metadata to mark LMN as generated (idempotency)
-    // Also store customer email and filename so we can email them after SignWell signing is complete
-    if (paymentIntentId) {
+    // Store SignWell document ID and customer email in Stripe payment intent metadata
+    // so the webhook handler can look up the email when the document is signed
+    if (stripePaymentIntentId && signwellResult.documentGroupId) {
       try {
-        await stripe.paymentIntents.update(paymentIntentId, {
+        await stripe.paymentIntents.update(stripePaymentIntentId, {
           metadata: {
-            lmnGenerated: 'true',
-            lmnGeneratedAt: new Date().toISOString(),
-            signwellDocumentGroupId: signwellResult.documentGroupId || '',
-            customerEmail: email || '', // Store customer email for webhook handler
-            lmnFileName: lmnFileName // Store original filename for webhook handler
+            signwellDocumentGroupId: signwellResult.documentGroupId,
+            customerEmail: email || '',
+            lmnFileName: lmnFileName,
           }
         });
-        console.log(`Updated payment intent ${paymentIntentId} metadata to mark LMN as generated`);
+        console.log('Stored SignWell document ID in Stripe payment intent metadata');
       } catch (metadataError) {
         console.error('Failed to update payment intent metadata:', metadataError);
-        // Don't fail the request if metadata update fails
       }
     }
 

@@ -28,7 +28,6 @@ export default function ListingCard({ listing, isHighlighted, onClick }) {
       navigate(`/book/${urlFriendlyName}/lmn-form`, {
         state: {
           stripeAcctId: listing.stripeAcctId || null,
-          bookingSystemEnabled: false,
           providerData: listing, // Pass the provider data since it's not in DB
         },
       });
@@ -45,13 +44,6 @@ export default function ListingCard({ listing, isHighlighted, onClick }) {
         isHighlighted ? "ring-2 ring-emerald-500 shadow-lg" : "shadow-md"
       }`}
     >
-      {/* Bookable tag - Bottom right corner */}
-      {/* {listing.bookingSystemEnabled !== false && (
-        <div className="absolute bottom-3 right-3 z-10 px-2 py-1 bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 text-xs font-semibold rounded-md shadow-md">
-          Bookable
-        </div>
-      )} */}
-
       {/* Image - Left side on desktop, top on mobile */}
       {listing.image && (
         <div className="relative w-full sm:w-1/4 flex-shrink-0">
@@ -123,27 +115,14 @@ export default function ListingCard({ listing, isHighlighted, onClick }) {
               const urlFriendlyName = toUrlFriendly(
                 listing.name || listing.business_name || `service-${listing.id}`
               );
-              if (listing.bookingSystemEnabled === false) {
-                navigate(`/book/${urlFriendlyName}/lmn-form`, {
-                  state: {
-                    stripeAcctId: listing.stripeAcctId || null,
-                    bookingSystemEnabled: false,
-                  },
-                });
-              } else {
-                navigate(`/book/${urlFriendlyName}`, {
-                  state: { stripeAcctId: listing.stripeAcctId || null },
-                });
-              }
+              navigate(`/book/${urlFriendlyName}`, {
+                state: { stripeAcctId: listing.stripeAcctId || null },
+              });
             }}
             className="inline-flex items-center gap-2 text-sm font-medium text-emerald-600 hover:text-emerald-700"
           >
-            <span>{listing.bookingSystemEnabled === false ? "📝" : "📅"}</span>
-            <span>
-              {listing.bookingSystemEnabled === false
-                ? "Get Your LMN Now →"
-                : "Book Now →"}
-            </span>
+            <span>📅</span>
+            <span>Book Now →</span>
           </button>
         </div>
       </div>

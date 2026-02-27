@@ -41,11 +41,6 @@ export async function createSignatureRequest(params: SignatureRequestParams): Pr
       selectedNurse
     } = params;
 
-    // Step 1: Upload the PDF document
-    console.log('Uploading PDF to SignWell...');
-    console.log("RECEIPIENT NAME", recipientName);
-    console.log("RECEIPIENT EMAIL", recipientEmail);
-
     // Step 2: Create signature request
     console.log('Creating signature request...');
     console.log('Recipient:', recipientEmail, recipientName);
@@ -160,6 +155,7 @@ interface WebhookPayload {
   data?: {
     object?: {
       id?: string;
+      document_group_id?: string;
       recipients?: Array<{
         email?: string;
         name?: string;
@@ -181,9 +177,13 @@ interface HandleWebhookResult {
 export async function handleSignwellWebhook(payload: WebhookPayload): Promise<HandleWebhookResult> {
   const eventType = payload?.event?.type;
 
-  if (eventType === 'document_completed') {
+  console.log("PAYLOAD", payload);
+  if (eventType === 'document_completed' || eventType === 'document.completed') {
     const docId = payload?.data?.object?.id;
+    // Try to get document_group_id from payload (this is what we store in Stripe metadata)
+    const documentGroupId = (payload?.data?.object as any)?.document_group_id || docId;
     console.log('SignWell document completed:', docId);
+    console.log('SignWell document group ID:', documentGroupId);
 
     // Get recipient name from SignWell payload
     const recipientName = payload?.data?.object?.recipients?.[0]?.name || 'there';
@@ -194,49 +194,37 @@ export async function handleSignwellWebhook(payload: WebhookPayload): Promise<Ha
     let recipientEmail: string | null = null;
     let lmnFileName: string | null = null;
     
-    if (docId) {
+    if (documentGroupId) {
       try {
-        // Search for payment intents with matching signwellDocumentGroupId in metadata
-        // Use Stripe search API for more efficient lookup
-        const searchResults = await stripe.paymentIntents.search({
-          query: `metadata['signwellDocumentGroupId']:'${docId}'`,
-          limit: 1,
+        // Use list() instead of search() to avoid Stripe search index lag
+        // search() can take 1-2 minutes to index newly-updated metadata
+        console.log('Looking up Stripe payment intent for documentGroupId:', documentGroupId);
+
+        const idsToCheck = [documentGroupId, ...(documentGroupId !== docId ? [docId] : [])];
+
+        // List recent payment intents (last 24 hours) and filter in code
+        const recentIntents = await stripe.paymentIntents.list({
+          limit: 25,
+          created: { gte: Math.floor(Date.now() / 1000) - 86400 },
         });
-        
-        if (searchResults.data.length > 0) {
-          const matchingPaymentIntent = searchResults.data[0];
-          // Get filename from metadata
+
+        const matchingPaymentIntent = recentIntents.data.find(pi =>
+          idsToCheck.includes(pi.metadata?.signwellDocumentGroupId)
+        );
+
+        if (matchingPaymentIntent) {
           if (matchingPaymentIntent.metadata?.lmnFileName) {
             lmnFileName = matchingPaymentIntent.metadata.lmnFileName;
-            console.log(`✓ Found LMN filename from Stripe payment intent metadata: ${lmnFileName}`);
+            console.log(`✓ Found LMN filename: ${lmnFileName}`);
           }
-          
           if (matchingPaymentIntent.metadata?.customerEmail) {
             recipientEmail = matchingPaymentIntent.metadata.customerEmail;
-            console.log(`✓ Found customer email from Stripe payment intent metadata: ${recipientEmail}`);
+            console.log(`✓ Found customer email: ${recipientEmail}`);
           } else {
-            console.warn(`⚠ Payment intent found but no customerEmail in metadata for document ${docId}`);
-            // Try to get email from payment intent customer or receipt_email as fallback
-            if (matchingPaymentIntent.customer) {
-              try {
-                const customer = typeof matchingPaymentIntent.customer === 'object'
-                  ? matchingPaymentIntent.customer as any
-                  : await stripe.customers.retrieve(matchingPaymentIntent.customer as string);
-                if (customer && typeof customer === 'object' && customer.email) {
-                  recipientEmail = customer.email;
-                  console.log(`✓ Found customer email from Stripe customer object: ${recipientEmail}`);
-                }
-              } catch (customerError) {
-                console.error('Error retrieving customer:', customerError);
-              }
-            }
-            if (!recipientEmail && matchingPaymentIntent.receipt_email) {
-              recipientEmail = matchingPaymentIntent.receipt_email;
-              console.log(`✓ Found customer email from payment intent receipt_email: ${recipientEmail}`);
-            }
+            console.warn(`⚠ Payment intent found but no customerEmail in metadata for document ${documentGroupId}`);
           }
         } else {
-          console.warn(`⚠ No payment intent found with signwellDocumentGroupId ${docId}`);
+          console.warn(`⚠ No payment intent found with signwellDocumentGroupId ${documentGroupId}`);
         }
       } catch (stripeError) {
         console.error('Error looking up customer email from Stripe:', stripeError);
@@ -245,7 +233,7 @@ export async function handleSignwellWebhook(payload: WebhookPayload): Promise<Ha
     
     // Use customer email if found, otherwise log warning (but don't send email to support)
     if (!recipientEmail) {
-      console.error(`❌ Could not find customer email for SignWell document ${docId}. Email will not be sent.`);
+      console.error(`❌ Could not find customer email for SignWell document ${documentGroupId}. Email will not be sent.`);
       console.error('This means the Resend API email will not be sent. Please check Stripe metadata.');
       return { received: true }; // Return early to prevent sending email to wrong address
     }
@@ -254,6 +242,7 @@ export async function handleSignwellWebhook(payload: WebhookPayload): Promise<Ha
     let attachments: { filename: string; content: string; contentType: string }[] = [];
     if (docId && SIGNWELL_API_KEY) {
       try {
+        console.log(`Fetching completed PDF from SignWell for document ID: ${docId}`);
         const pdfResponse = await axios.get(
           `${SIGNWELL_API_URL}/documents/${docId}/completed_pdf/`,
           {

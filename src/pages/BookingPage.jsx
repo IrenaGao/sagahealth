@@ -76,26 +76,11 @@ export default function BookingPage() {
         categories = [providerData.business_type];
       }
 
-      const bookingSystemEnabled = providerData.booking_system !== false;
-
-      // If provider does not have a booking system, send user straight to LMN form
-      if (!bookingSystemEnabled) {
-        navigate(`/book/${businessName}/lmn-form`, {
-          replace: true,
-          state: {
-            stripeAcctId: providerData.stripe_acct_id || null,
-            bookingSystemEnabled: false,
-          },
-        });
-        return;
-      }
-
       setService({
         id: providerData.id,
         name: providerData.business_name || 'Wellness Service',
         categories: categories,
         description: providerData.short_summary || '',
-        complete: providerData.complete !== false, // Default to true if not specified
         address: providerData.address || '',
         rating: providerData.rating || null,
         reviewCount: providerData.num_reviews || 0,
@@ -128,7 +113,6 @@ export default function BookingPage() {
           description: `${service.service_type} session`,
           url: service.booking_link || '',
           icon: getServiceIcon(service.service_type),
-          price: service.service_pricing || null,
         }));
         
         // Sort by duration (shortest to longest), null durations go to the end
@@ -232,24 +216,7 @@ export default function BookingPage() {
 
         {/* Booking Options */}
         <div className="bg-white rounded-2xl shadow-lg p-6 pb-6">
-          {!service.complete ? (
-            // Coming Soon Message
-            <div className="text-center py-16">
-              <div className="text-6xl mb-4">🚧</div>
-              <h2 className="text-3xl font-extrabold text-gray-900 mb-4">Coming Soon</h2>
-              <p className="text-gray-600 text-lg mb-8">
-                This provider is currently setting up their booking system. Check back soon!
-              </p>
-              <button
-                onClick={() => navigate('/')}
-                className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg transition-colors"
-              >
-                Back to Marketplace
-              </button>
-            </div>
-          ) : (
-            <>
-              <div className="mb-12">
+          <div className="mb-12">
                 <h2 className="text-3xl font-extrabold text-gray-900 flex items-center gap-3 mb-2">
                   <span className="text-3xl">📅</span>
                   Select Your Service
@@ -306,18 +273,11 @@ export default function BookingPage() {
                             })}
                   className="group relative bg-gradient-to-br from-emerald-50 to-white border-2 border-gray-200 rounded-xl p-6 hover:border-emerald-500 hover:shadow-lg transition-all duration-200 cursor-pointer"
                 >
-                  {/* Service Duration and Price */}
+                  {/* Service Duration */}
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-lg font-semibold text-gray-900 group-hover:text-emerald-600 transition-colors">
                       {option.duration}
                     </h4>
-                    
-                    {/* Price Tag */}
-                    {option.price && (
-                      <span className="inline-block px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium rounded-lg ml-2 flex-shrink-0">
-                        ${option.price}
-                      </span>
-                    )}
                   </div>
                   
                   {/* Book Now Button */}
@@ -334,8 +294,6 @@ export default function BookingPage() {
                   );
                 });
               })()}
-            </>
-          )}
         </div>
       </div>
     </div>
