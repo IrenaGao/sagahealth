@@ -18,6 +18,7 @@ export default function WellnessMarketplace() {
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const listRefs = useRef({});
+  const searchDebounceRef = useRef(null);
   const ITEMS_PER_PAGE = 6;
   
   // Get filter values from Zustand store
@@ -26,6 +27,7 @@ export default function WellnessMarketplace() {
   const setUserLocation = useFilterStore((state) => state.setUserLocation);
   
   const selectedCategory = filters.category;
+  const searchQuery = useFilterStore((state) => state.searchQuery);
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   // Cache for search results based on location
@@ -84,6 +86,32 @@ export default function WellnessMarketplace() {
   // Detect user location on first visit
   useDetectUserLocation(userLocation, setUserLocation);
 
+  // Re-query Google Places when search text changes (debounced)
+  useEffect(() => {
+    if (!userLocation) return;
+
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+
+    searchDebounceRef.current = setTimeout(async () => {
+      setGooglePlacesLoading(true);
+      try {
+        const query = searchQuery.trim() || null;
+        const googleData = await fetchGooglePlaces(userLocation, query);
+        setProviders((prev) => {
+          const supabaseProviders = prev.filter((p) => !p.isGooglePlace);
+          return [...supabaseProviders, ...googleData];
+        });
+        cacheRef.current.googleProviders = googleData;
+      } finally {
+        setGooglePlacesLoading(false);
+      }
+    }, 800);
+
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, [searchQuery, userLocation]);
+
   // Load Google Maps JS (non-blocking; UI renders immediately)
   useEffect(() => {
     loadGoogleMaps({ apiKey: googleMapsApiKey, libraries: ["places"] }).catch(
@@ -108,8 +136,8 @@ export default function WellnessMarketplace() {
     return R * c;
   };
 
-  // Fetch Google Places nearby services using Places API (New) REST endpoint
-  const fetchGooglePlaces = async (location) => {
+  // Fetch Google Places services using Places API (New) text search endpoint
+  const fetchGooglePlaces = async (location, query = null) => {
     try {
       if (!location || !googleMapsApiKey) {
         console.log("fetchGooglePlaces: Missing location or API key", { location, hasApiKey: !!googleMapsApiKey });
@@ -131,10 +159,9 @@ export default function WellnessMarketplace() {
           const radiusMeters = Math.min(50 * 1609.34, 50000);
 
           const requestBody = {
-            includedTypes: INCLUDED_TYPES,
-            excludedTypes: ["lodging"],
+            textQuery: query || "spa yoga fitness wellness massage chiropractor sauna beauty salon",
             maxResultCount: 20,
-            locationRestriction: {
+            locationBias: {
               circle: {
                 center: {
                   latitude: lat,
@@ -147,20 +174,20 @@ export default function WellnessMarketplace() {
 
           console.log("fetchGooglePlaces: Making NEW request", { lat, lng, radiusMeters, requestBody });
 
-          // Use the modern Places API (New) REST endpoint
+          // Use the Places API (New) text search endpoint
           const response = await fetch(
-        "https://places.googleapis.com/v1/places:searchNearby",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Goog-Api-Key": googleMapsApiKey,
-            "X-Goog-FieldMask":
-              "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.types,places.googleMapsUri",
-          },
-          body: JSON.stringify(requestBody),
-        }
-      );
+            "https://places.googleapis.com/v1/places:searchText",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-Goog-Api-Key": googleMapsApiKey,
+                "X-Goog-FieldMask":
+                  "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.types,places.googleMapsUri",
+              },
+              body: JSON.stringify(requestBody),
+            }
+          );
 
       const responseText = await response.text();
       console.log("fetchGooglePlaces: Response status", response.status);
@@ -375,6 +402,8 @@ export default function WellnessMarketplace() {
       return [];
     }
 
+    const query = searchQuery.trim().toLowerCase();
+
     return providers.filter((provider) => {
       const matchesCategory =
         selectedCategory === "all" ||
@@ -391,11 +420,19 @@ export default function WellnessMarketplace() {
             userLocation.lng,
             provider.coordinates.lat,
             provider.coordinates.lng
-          ) <= 50); // Fixed 50 miles
+          ) <= 50);
 
-      return matchesCategory && matchesLocation;
+      // Text search filtering for Supabase providers (Google Places already filtered by query)
+      const matchesSearch =
+        !query ||
+        provider.isGooglePlace ||
+        provider.name?.toLowerCase().includes(query) ||
+        provider.description?.toLowerCase().includes(query) ||
+        provider.categories?.some((cat) => cat.toLowerCase().includes(query));
+
+      return matchesCategory && matchesLocation && matchesSearch;
     });
-  }, [providers, selectedCategory, userLocation]);
+  }, [providers, selectedCategory, userLocation, searchQuery]);
 
   // Reset to first page when filters change
   useEffect(() => {

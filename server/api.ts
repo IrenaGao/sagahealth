@@ -491,7 +491,8 @@ app.post('/api/generate-lmn', async (req, res) => {
             date: today,
             service: null,
             provider_id: providerId,
-            is_lmn: true
+            is_lmn: true,
+            signwell_document_group_id: signwellResult.documentGroupId || null,
           });
         
         if (referralError) {

@@ -5,6 +5,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import stripe from '../stripe.js';
 import { PDFDocument } from 'pdf-lib';
+import { createClient } from '@supabase/supabase-js';
 
 // Get current file directory and load environment variables
 const __filename = fileURLToPath(import.meta.url);
@@ -14,6 +15,11 @@ dotenv.config({ path: join(__dirname, '../../.env') });
 const SIGNWELL_API_KEY = process.env.SIGNWELL_API_KEY;
 const SIGNWELL_API_URL = process.env.SIGNWELL_API_URL || 'https://www.signwell.com/api/v1';
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
+
+const supabase = createClient(
+  process.env.VITE_SUPABASE_URL || '',
+  process.env.VITE_SUPABASE_ANON_KEY || ''
+);
 
 interface SignatureRequestParams {
   pdfBase64: string;
@@ -188,46 +194,31 @@ export async function handleSignwellWebhook(payload: WebhookPayload): Promise<Ha
     // Get recipient name from SignWell payload
     const recipientName = payload?.data?.object?.recipients?.[0]?.name || 'there';
     
-    // Look up customer email and filename from Stripe payment intent metadata
-    // The signwellDocumentGroupId is stored in payment intent metadata when the document is created
-    // This email will be used for the Resend API notification (not the SignWell recipient)
+    // Look up customer email from client_referrals table using signwell_document_group_id
     let recipientEmail: string | null = null;
     let lmnFileName: string | null = null;
-    
+
     if (documentGroupId) {
       try {
-        // Use list() instead of search() to avoid Stripe search index lag
-        // search() can take 1-2 minutes to index newly-updated metadata
-        console.log('Looking up Stripe payment intent for documentGroupId:', documentGroupId);
+        console.log('Looking up client_referrals for documentGroupId:', documentGroupId);
+        const { data: referral, error: referralError } = await supabase
+          .from('client_referrals')
+          .select('email, first_name, last_name, date')
+          .eq('signwell_document_group_id', documentGroupId)
+          .maybeSingle();
 
-        const idsToCheck = [documentGroupId, ...(documentGroupId !== docId ? [docId] : [])];
-
-        // List recent payment intents (last 24 hours) and filter in code
-        const recentIntents = await stripe.paymentIntents.list({
-          limit: 25,
-          created: { gte: Math.floor(Date.now() / 1000) - 86400 },
-        });
-
-        const matchingPaymentIntent = recentIntents.data.find(pi =>
-          idsToCheck.includes(pi.metadata?.signwellDocumentGroupId)
-        );
-
-        if (matchingPaymentIntent) {
-          if (matchingPaymentIntent.metadata?.lmnFileName) {
-            lmnFileName = matchingPaymentIntent.metadata.lmnFileName;
-            console.log(`✓ Found LMN filename: ${lmnFileName}`);
-          }
-          if (matchingPaymentIntent.metadata?.customerEmail) {
-            recipientEmail = matchingPaymentIntent.metadata.customerEmail;
-            console.log(`✓ Found customer email: ${recipientEmail}`);
-          } else {
-            console.warn(`⚠ Payment intent found but no customerEmail in metadata for document ${documentGroupId}`);
-          }
+        if (referralError) {
+          console.error('Error querying client_referrals:', referralError);
+        } else if (referral) {
+          recipientEmail = referral.email || null;
+          lmnFileName = `LMN_${referral.first_name}_${referral.last_name}_${referral.date}.pdf`;
+          console.log(`✓ Found customer email: ${recipientEmail}`);
+          console.log(`✓ Reconstructed LMN filename: ${lmnFileName}`);
         } else {
-          console.warn(`⚠ No payment intent found with signwellDocumentGroupId ${documentGroupId}`);
+          console.warn(`⚠ No client_referral found with signwell_document_group_id ${documentGroupId}`);
         }
-      } catch (stripeError) {
-        console.error('Error looking up customer email from Stripe:', stripeError);
+      } catch (err) {
+        console.error('Error looking up customer email from client_referrals:', err);
       }
     }
     
