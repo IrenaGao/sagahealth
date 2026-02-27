@@ -159,7 +159,7 @@ export default function WellnessMarketplace() {
           const radiusMeters = Math.min(50 * 1609.34, 50000);
 
           const requestBody = {
-            textQuery: query || "spa yoga fitness wellness massage chiropractor sauna beauty salon",
+            textQuery: query || "spa yoga acupuncture massage chiropractor sauna beauty salon",
             maxResultCount: 20,
             locationBias: {
               circle: {
@@ -292,7 +292,7 @@ export default function WellnessMarketplace() {
       if (userLocation) {
         setGooglePlacesLoading(true);
         try {
-          googleData = await fetchGooglePlaces(userLocation);
+          googleData = await fetchGooglePlaces(userLocation, searchQuery.trim() || null);
           console.log("Fetched Google Places providers:", googleData.length);
         } catch (googleError) {
           console.error("Error fetching Google Places:", googleError);
@@ -406,21 +406,24 @@ export default function WellnessMarketplace() {
 
     return providers.filter((provider) => {
       const matchesCategory =
+        provider.isGooglePlace || // Google Places API already filtered by text query
         selectedCategory === "all" ||
         provider.categories?.some(
           (cat) => cat.toLowerCase() === selectedCategory.toLowerCase()
         );
 
       // Location-based filtering (fixed 50 miles)
-      const matchesLocation =
-        !userLocation ||
-        (provider.coordinates &&
-          calculateDistance(
+      const distance = provider.coordinates
+        ? calculateDistance(
             userLocation.lat,
             userLocation.lng,
             provider.coordinates.lat,
             provider.coordinates.lng
-          ) <= 50);
+          )
+        : null;
+      const matchesLocation =
+        !userLocation ||
+        (provider.coordinates && distance <= 50);
 
       // Text search filtering for Supabase providers (Google Places already filtered by query)
       const matchesSearch =
@@ -429,6 +432,7 @@ export default function WellnessMarketplace() {
         provider.name?.toLowerCase().includes(query) ||
         provider.description?.toLowerCase().includes(query) ||
         provider.categories?.some((cat) => cat.toLowerCase().includes(query));
+
 
       return matchesCategory && matchesLocation && matchesSearch;
     });

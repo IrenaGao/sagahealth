@@ -8,6 +8,7 @@ export default function SearchBar() {
   // Get state and actions from Zustand store
   const filters = useFilterStore((state) => state.filters);
   const setFilter = useFilterStore((state) => state.setFilter);
+  const setSearchQuery = useFilterStore((state) => state.setSearchQuery);
 
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
 
@@ -32,7 +33,7 @@ export default function SearchBar() {
             return (
               <button
                 key={category}
-                onClick={() => setFilter('category', categoryType)}
+                onClick={() => { setFilter('category', categoryType); setSearchQuery('') }}
                 className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
                   filters.category === categoryType
                     ? 'bg-emerald-500 text-white shadow-md'

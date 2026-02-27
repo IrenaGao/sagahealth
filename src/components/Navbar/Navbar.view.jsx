@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { geocodeAddress } from '../../utils/googleGeocoding'
 import { useFilterStore } from '../Filters/filterStore'
 import { getDisplayCategories, formatCategoryType } from '../../config/wellnessCategories'
@@ -13,25 +13,60 @@ export default function NavbarView({ onLogoClick, onBackClick, rightContent, hid
   const setFilter = useFilterStore((state) => state.setFilter);
   const userLocation = useFilterStore((state) => state.userLocation);
   const setUserLocation = useFilterStore((state) => state.setUserLocation);
-  
-  const [isLoadingLocation, setIsLoadingLocation] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
 
-  // Detect mobile screen size
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false)
+  const [locationInput, setLocationInput] = useState('')
+  const locationInputRef = useRef(null)
+  const autocompleteRef = useRef(null)
+
+  // Sync location input when userLocation is set (e.g. auto-detected)
   useEffect(() => {
-    const checkIsMobile = () => {
-      setIsMobile(window.innerWidth < 768) // md breakpoint
+    if (userLocation?.address) {
+      setLocationInput(userLocation.address.split(',').slice(0, 2).join(', '))
+    }
+  }, [userLocation])
+
+  // Initialize Google Places Autocomplete on the location input
+  useEffect(() => {
+    const initAutocomplete = () => {
+      if (!locationInputRef.current || !window.google?.maps?.places) return
+      if (autocompleteRef.current) return // already initialized
+
+      const autocomplete = new window.google.maps.places.Autocomplete(locationInputRef.current, {
+        types: ['geocode'],
+      })
+
+      autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace()
+        if (place.geometry?.location) {
+          const lat = place.geometry.location.lat()
+          const lng = place.geometry.location.lng()
+          setUserLocation({ lat, lng, address: place.formatted_address || place.name })
+          setLocationInput(place.formatted_address || place.name)
+        }
+      })
+
+      autocompleteRef.current = autocomplete
     }
 
-    checkIsMobile()
-    window.addEventListener('resize', checkIsMobile)
-    return () => window.removeEventListener('resize', checkIsMobile)
+    // Google Maps may not be loaded yet — poll briefly
+    if (window.google?.maps?.places) {
+      initAutocomplete()
+    } else {
+      const interval = setInterval(() => {
+        if (window.google?.maps?.places) {
+          clearInterval(interval)
+          initAutocomplete()
+        }
+      }, 300)
+      return () => clearInterval(interval)
+    }
   }, [])
 
-  const handleLocationSearch = async (locationQuery = searchQuery) => {
-    if (!locationQuery.trim()) return
+  const handleLocationSearch = async (query = locationInput) => {
+    if (!query.trim()) return
 
-    console.log('Searching for location:', locationQuery)
+    console.log('Searching for location:', query)
     setIsLoadingLocation(true)
     try {
       const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
@@ -40,13 +75,13 @@ export default function NavbarView({ onLogoClick, onBackClick, rightContent, hid
         return
       }
 
-      const result = await geocodeAddress({ apiKey, address: locationQuery })
+      const result = await geocodeAddress({ apiKey, address: query })
 
       if (result?.lat && result?.lng) {
         const locationData = {
           lat: result.lat,
           lng: result.lng,
-          address: result.formattedAddress || locationQuery,
+          address: result.formattedAddress || query,
         }
         console.log('Location found, calling setUserLocation:', locationData)
         setUserLocation(locationData)
@@ -62,39 +97,35 @@ export default function NavbarView({ onLogoClick, onBackClick, rightContent, hid
     }
   }
 
-  const handleSearch = () => {
+  // Left input Enter: check for category match, otherwise leave as text search
+  const handleTextSearch = () => {
     if (!searchQuery.trim()) return
-    
-    // Check if it matches a category first (case-insensitive, with or without spaces/underscores)
+
     const queryLower = searchQuery.toLowerCase().trim()
     const matchedCategory = categories.find(cat => {
       if (cat === 'All') return false
       const catLower = cat.toLowerCase()
-      const catType = formatCategoryType(cat) // Convert display to type format
-      return catLower === queryLower || 
+      const catType = formatCategoryType(cat)
+      return catLower === queryLower ||
              catLower.replace(/\s+/g, '') === queryLower.replace(/\s+/g, '') ||
              catType === queryLower.replace(/\s+/g, '_')
     })
-    
+
     if (matchedCategory && matchedCategory !== 'All') {
-      console.log('Matched category:', matchedCategory)
-      // Convert display format to type format for filter matching
       const categoryType = formatCategoryType(matchedCategory)
       setFilter('category', categoryType)
       setSearchQuery('')
-    } else {
-      // Treat as location search
-      console.log('Treating as location search')
-      const query = searchQuery
-      setSearchQuery('') // Clear search before location search
-      handleLocationSearch(query)
+    } else if (filters.category !== 'all') {
+      setFilter('category', 'all')
     }
   }
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && searchQuery.trim()) {
-      handleSearch()
-    }
+  const handleTextKeyPress = (e) => {
+    if (e.key === 'Enter') handleTextSearch()
+  }
+
+  const handleLocationKeyPress = (e) => {
+    if (e.key === 'Enter') handleLocationSearch()
   }
 
   return (
@@ -114,59 +145,81 @@ export default function NavbarView({ onLogoClick, onBackClick, rightContent, hid
             </h1>
           </button>
 
-          {/* Search Bar - Only show on marketplace page */}
+          {/* Dual Search Bar - Only show on marketplace page */}
           {!hideSearch && (
-            <div className="flex-1 max-w-4xl relative">
-              <input
-                type="text"
-                placeholder={isMobile ? "Search" : "Search services (e.g., Massage, Yoga) or location (e.g., New York, 10001)..."}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={handleKeyPress}
-                disabled={isLoadingLocation}
-                className="w-full px-4 py-2.5 pr-32 rounded-xl text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900 placeholder-gray-500"
-              />
-              
-              {/* Active Filters Display and Search Icon */}
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                {filters.category !== 'all' && (
-                  <div className="flex items-center gap-1 bg-emerald-100 px-2 py-1 rounded-lg">
-                    <span className="text-xs text-emerald-800">{filters.category}</span>
-                    <button
-                      onClick={() => setFilter('category', 'all')}
-                      className="text-emerald-600 hover:text-emerald-800 font-bold text-xs"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                )}
-                {userLocation && (
-                  <div className="flex items-center gap-1 bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200">
-                    <span className="text-xs text-blue-800 font-medium">
-                      📍 {userLocation.address.split(',').slice(0, 2).join(', ') || 'Your Location'}
-                    </span>
-                  </div>
-                )}
-                {/* Search Icon Button */}
+            <div className="flex-1 max-w-4xl">
+              <div className="flex items-center border border-gray-300 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-transparent bg-white">
+
+                {/* Left: Text / Category Search */}
+                <div className="flex flex-[5] items-center px-3 py-2.5 min-w-0">
+                  {filters.category !== 'all' && (
+                    <div className="flex items-center gap-1 bg-emerald-100 px-2 py-0.5 rounded-lg mr-2 shrink-0">
+                      <span className="text-xs text-emerald-800">{filters.category}</span>
+                      <button
+                        onClick={() => setFilter('category', 'all')}
+                        className="text-emerald-600 hover:text-emerald-800 font-bold text-xs leading-none"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                  <input
+                    type="text"
+                    placeholder="Services, businesses..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value)
+                      if (filters.category !== 'all') setFilter('category', 'all')
+                    }}
+                    onKeyPress={handleTextKeyPress}
+                    className="flex-1 text-sm outline-none text-gray-900 placeholder-gray-500 bg-transparent min-w-0"
+                  />
+                </div>
+
+                {/* Divider */}
+                <div className="w-px h-6 bg-gray-300 shrink-0" />
+
+                {/* Right: Location Search */}
+                <div className="flex flex-[2] items-center px-3 py-2.5 min-w-0 max-w-[180px]">
+                  <input
+                    ref={locationInputRef}
+                    type="text"
+                    placeholder="Location"
+                    value={locationInput}
+                    onChange={(e) => setLocationInput(e.target.value)}
+                    onKeyPress={handleLocationKeyPress}
+                    disabled={isLoadingLocation}
+                    className="flex-1 text-sm outline-none text-gray-900 placeholder-gray-500 bg-transparent min-w-0"
+                  />
+                </div>
+
+                {/* Search Button */}
                 <button
-                  onClick={handleSearch}
-                  disabled={!searchQuery.trim() || isLoadingLocation}
-                  className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  onClick={() => handleLocationSearch()}
+                  disabled={isLoadingLocation}
+                  className="px-3 py-2.5 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
                   title="Search"
                 >
-                  <svg 
-                    className="w-5 h-5 text-gray-600" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" 
-                    />
-                  </svg>
+                  {isLoadingLocation ? (
+                    <svg className="w-5 h-5 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="w-5 h-5 text-gray-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                  )}
                 </button>
               </div>
             </div>

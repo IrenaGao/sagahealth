@@ -1,13 +1,13 @@
 // Shared wellness category types used across the application
 export const INCLUDED_TYPES = [
-  "spa",
   "gym",
-  "chiropractor",
-  "beauty_salon",
+  "pilates",
+  "yoga",
   "massage",
+  "spa",
+  "acupuncture",
+  "chiropractor",
   "sauna",
-  "wellness_center",
-  "yoga_studio"
 ];
 
 // Convert category type to display format (capitalize and replace underscores)
