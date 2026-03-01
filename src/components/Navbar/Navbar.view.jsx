@@ -191,6 +191,13 @@ export default function NavbarView({ onLogoClick, onBackClick, rightContent, hid
                   onKeyPress={handleTextKeyPress}
                   className="flex-1 text-sm outline-none text-gray-900 placeholder-gray-500 bg-transparent min-w-0"
                 />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} className="ml-1 text-gray-400 hover:text-gray-600 shrink-0">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
             {/* Row 3: Location search */}
@@ -255,6 +262,13 @@ export default function NavbarView({ onLogoClick, onBackClick, rightContent, hid
                     onKeyPress={handleTextKeyPress}
                     className="flex-1 text-sm outline-none text-gray-900 placeholder-gray-500 bg-transparent min-w-0"
                   />
+                  {searchQuery && (
+                    <button onClick={() => setSearchQuery('')} className="ml-1 text-gray-400 hover:text-gray-600 shrink-0">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
                 {/* Divider */}
                 <div className="w-px h-6 bg-gray-300 shrink-0" />
