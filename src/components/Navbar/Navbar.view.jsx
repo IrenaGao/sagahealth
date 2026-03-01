@@ -6,6 +6,8 @@ import { getDisplayCategories, formatCategoryType } from '../../config/wellnessC
 const categories = getDisplayCategories();
 
 export default function NavbarView({ onLogoClick, onBackClick, rightContent, hideSearch = false }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   // Get state and actions from Zustand store
   const searchQuery = useFilterStore((state) => state.searchQuery);
   const setSearchQuery = useFilterStore((state) => state.setSearchQuery);
@@ -129,56 +131,133 @@ export default function NavbarView({ onLogoClick, onBackClick, rightContent, hid
   }
 
   return (
-    <div className="bg-white sticky top-0 z-30 shadow-sm">
-      <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="flex items-center gap-4">
-          {/* Logo */}
-          <button
-            onClick={onLogoClick}
-            className="flex items-center gap-2 flex-shrink-0"
-          >
-            <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">S</span>
+    <div className="bg-white sticky top-0 z-30">
+      <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-4 pb-2 md:pb-4">
+
+        {/* Mobile layout */}
+        {!hideSearch && (
+          <div className="flex flex-col gap-2 md:hidden">
+            {/* Row 1: Logo + hamburger */}
+            <div className="flex items-center justify-between mb-2">
+              <button onClick={onLogoClick} className="flex items-center gap-2 flex-shrink-0">
+                <img src="/favicon.png" alt="Saga Health" className="w-8 h-8 object-contain" />
+                <span className="text-xl font-bold text-gray-900">Saga Health</span>
+              </button>
+              {rightContent ? (
+                <button
+                  onClick={() => setMenuOpen((o) => !o)}
+                  className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
+                  aria-label="Toggle menu"
+                >
+                  {menuOpen ? (
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  ) : (
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  )}
+                </button>
+              ) : (
+                <button onClick={onBackClick} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              )}
             </div>
-            <h1 className="text-xl font-bold text-gray-900 hidden sm:block">
-              Saga Health
-            </h1>
+
+            {/* Mobile nav dropdown */}
+            {menuOpen && rightContent && (
+              <div className="flex flex-col gap-4 py-3 px-1 border-t border-gray-100 mb-2 [&>div]:flex-col [&>div]:items-start" onClick={() => setMenuOpen(false)}>
+                {rightContent}
+              </div>
+            )}
+            {/* Row 2: Text search */}
+            <div className="flex items-center border border-gray-300 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-transparent bg-white">
+              <div className="flex flex-1 items-center px-3 py-2.5 min-w-0">
+                {filters.category !== 'all' && (
+                  <div className="flex items-center gap-1 bg-emerald-100 px-2 py-0.5 rounded-lg mr-2 shrink-0">
+                    <span className="text-xs text-emerald-800">{filters.category}</span>
+                    <button onClick={() => setFilter('category', 'all')} className="text-emerald-600 hover:text-emerald-800 font-bold text-xs leading-none">✕</button>
+                  </div>
+                )}
+                <input
+                  type="text"
+                  placeholder="Services, businesses..."
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); if (filters.category !== 'all') setFilter('category', 'all') }}
+                  onKeyPress={handleTextKeyPress}
+                  className="flex-1 text-sm outline-none text-gray-900 placeholder-gray-500 bg-transparent min-w-0"
+                />
+              </div>
+            </div>
+            {/* Row 3: Location search */}
+            <div className="flex items-center border border-gray-300 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-transparent bg-white">
+              <div className="flex flex-1 items-center px-3 py-2.5 min-w-0">
+                <input
+                  ref={locationInputRef}
+                  type="text"
+                  placeholder="Location"
+                  value={locationInput}
+                  onChange={(e) => setLocationInput(e.target.value)}
+                  onKeyPress={handleLocationKeyPress}
+                  disabled={isLoadingLocation}
+                  className="flex-1 text-sm outline-none text-gray-900 placeholder-gray-500 bg-transparent min-w-0"
+                />
+              </div>
+              <button
+                onClick={() => handleLocationSearch()}
+                disabled={isLoadingLocation}
+                className="px-3 py-2.5 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
+              >
+                {isLoadingLocation ? (
+                  <svg className="w-5 h-5 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Desktop layout: single row */}
+        <div className={`${!hideSearch ? 'hidden md:flex' : 'flex'} items-center gap-4`}>
+          {/* Logo */}
+          <button onClick={onLogoClick} className="flex items-center gap-2 flex-shrink-0">
+            <img src="/favicon.png" alt="Saga Health" className="w-8 h-8 object-contain" />
+            <h1 className="text-xl font-bold text-gray-900 hidden sm:block">Saga Health</h1>
           </button>
 
-          {/* Dual Search Bar - Only show on marketplace page */}
+          {/* Dual Search Bar */}
           {!hideSearch && (
-            <div className="flex-1 max-w-4xl">
+            <div className="flex-1 max-w-4xl mx-2">
               <div className="flex items-center border border-gray-300 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-transparent bg-white">
-
                 {/* Left: Text / Category Search */}
                 <div className="flex flex-[5] items-center px-3 py-2.5 min-w-0">
                   {filters.category !== 'all' && (
                     <div className="flex items-center gap-1 bg-emerald-100 px-2 py-0.5 rounded-lg mr-2 shrink-0">
                       <span className="text-xs text-emerald-800">{filters.category}</span>
-                      <button
-                        onClick={() => setFilter('category', 'all')}
-                        className="text-emerald-600 hover:text-emerald-800 font-bold text-xs leading-none"
-                      >
-                        ✕
-                      </button>
+                      <button onClick={() => setFilter('category', 'all')} className="text-emerald-600 hover:text-emerald-800 font-bold text-xs leading-none">✕</button>
                     </div>
                   )}
                   <input
                     type="text"
                     placeholder="Services, businesses..."
                     value={searchQuery}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value)
-                      if (filters.category !== 'all') setFilter('category', 'all')
-                    }}
+                    onChange={(e) => { setSearchQuery(e.target.value); if (filters.category !== 'all') setFilter('category', 'all') }}
                     onKeyPress={handleTextKeyPress}
                     className="flex-1 text-sm outline-none text-gray-900 placeholder-gray-500 bg-transparent min-w-0"
                   />
                 </div>
-
                 {/* Divider */}
                 <div className="w-px h-6 bg-gray-300 shrink-0" />
-
                 {/* Right: Location Search */}
                 <div className="flex flex-[2] items-center px-3 py-2.5 min-w-0 max-w-[180px]">
                   <input
@@ -192,13 +271,11 @@ export default function NavbarView({ onLogoClick, onBackClick, rightContent, hid
                     className="flex-1 text-sm outline-none text-gray-900 placeholder-gray-500 bg-transparent min-w-0"
                   />
                 </div>
-
                 {/* Search Button */}
                 <button
                   onClick={() => handleLocationSearch()}
                   disabled={isLoadingLocation}
                   className="px-3 py-2.5 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
-                  title="Search"
                 >
                   {isLoadingLocation ? (
                     <svg className="w-5 h-5 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -206,18 +283,8 @@ export default function NavbarView({ onLogoClick, onBackClick, rightContent, hid
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                     </svg>
                   ) : (
-                    <svg
-                      className="w-5 h-5 text-gray-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                      />
+                    <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                   )}
                 </button>

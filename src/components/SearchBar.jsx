@@ -9,6 +9,10 @@ export default function SearchBar() {
   const filters = useFilterStore((state) => state.filters);
   const setFilter = useFilterStore((state) => state.setFilter);
   const setSearchQuery = useFilterStore((state) => state.setSearchQuery);
+  const supabaseOnly = useFilterStore((state) => state.supabaseOnly);
+  const setSupabaseOnly = useFilterStore((state) => state.setSupabaseOnly);
+  const appsOnly = useFilterStore((state) => state.appsOnly);
+  const setAppsOnly = useFilterStore((state) => state.setAppsOnly);
 
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
 
@@ -23,8 +27,8 @@ export default function SearchBar() {
   };
 
   return (
-    <div className="bg-white">
-      <div className="max-w-[1920px] mx-auto px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 py-4">
+    <div className="bg-white shadow-sm">
+      <div className="max-w-[1920px] mx-auto px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 py-4 md:pt-4 md:pb-6">
         {/* Category Selection - Responsive */}
         {/* Desktop: Pills */}
         <div className="hidden md:flex gap-2 overflow-x-auto hide-scrollbar">
@@ -44,10 +48,38 @@ export default function SearchBar() {
               </button>
             )
           })}
+
+          {/* Divider */}
+          <div className="w-px bg-gray-300 mx-4 self-stretch" />
+
+          {/* Saga Providers pill */}
+          <button
+            onClick={() => setSupabaseOnly(!supabaseOnly)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+              supabaseOnly
+                ? 'bg-emerald-500 text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Saga Providers
+          </button>
+
+          {/* Apps pill */}
+          <button
+            onClick={() => setAppsOnly(!appsOnly)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+              appsOnly
+                ? 'bg-emerald-500 text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Apps
+          </button>
         </div>
 
-        {/* Mobile: Dropdown */}
-        <div className="md:hidden relative">
+        {/* Mobile: Dropdown + Saga Providers + Apps */}
+        <div className="md:hidden flex items-center justify-center gap-2">
+          <div className="relative">
           <button
             onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
             className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${
@@ -68,7 +100,7 @@ export default function SearchBar() {
           </button>
 
           {showCategoryDropdown && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto">
+            <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto min-w-[160px]">
               {categories.map((category) => {
                 const categoryType = category === 'All' ? 'all' : formatCategoryType(category)
                 const isSelected = filters.category === categoryType
@@ -96,6 +128,31 @@ export default function SearchBar() {
               })}
             </div>
           )}
+          </div>
+
+          {/* Saga Providers pill */}
+          <button
+            onClick={() => setSupabaseOnly(!supabaseOnly)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+              supabaseOnly
+                ? 'bg-emerald-500 text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Saga Providers
+          </button>
+
+          {/* Apps pill */}
+          <button
+            onClick={() => setAppsOnly(!appsOnly)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+              appsOnly
+                ? 'bg-emerald-500 text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Apps
+          </button>
         </div>
       </div>
     </div>

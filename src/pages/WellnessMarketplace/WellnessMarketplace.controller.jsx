@@ -5,7 +5,7 @@ import WellnessMarketplaceView from "./WellnessMarketplace.view";
 import { useFilterStore } from "../../components/Filters/filterStore";
 import { loadGoogleMaps } from "../../utils/googleMapsLoader";
 import { INCLUDED_TYPES } from "../../config/wellnessCategories";
-import { getStockPhotoForType, resetUsedPhotos } from "../../config/stockPhotos";
+import { assignPhotosForPage } from "../../config/stockPhotos";
 import { useDetectUserLocation } from "../../utils/useDetectUserLocation";
 
 export default function WellnessMarketplace() {
@@ -28,6 +28,8 @@ export default function WellnessMarketplace() {
   
   const selectedCategory = filters.category;
   const searchQuery = useFilterStore((state) => state.searchQuery);
+  const supabaseOnly = useFilterStore((state) => state.supabaseOnly);
+  const appsOnly = useFilterStore((state) => state.appsOnly);
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   // Cache for search results based on location
@@ -231,9 +233,6 @@ export default function WellnessMarketplace() {
               INCLUDED_TYPES.includes(type)
             );
 
-            // Get stock photo URL based on place types
-            const imageUrl = getStockPhotoForType(filteredCategories);
-
             return {
               id,
               order: null,
@@ -245,7 +244,8 @@ export default function WellnessMarketplace() {
               rating: place.rating ?? null,
               reviewCount: place.userRatingCount ?? 0,
               address: address,
-              image: imageUrl,
+              image: null,
+              hasRealImage: false,
               neighborhood: "",
               city: "",
               coordinates,
@@ -279,8 +279,6 @@ export default function WellnessMarketplace() {
   const fetchProviders = async () => {
     try {
       setLoading(true);
-      // Reset used photos for fresh selection
-      resetUsedPhotos();
       // Fetch Supabase providers
       const { data, error } = await supabase
         .from("providers")
@@ -334,8 +332,8 @@ export default function WellnessMarketplace() {
             rating: provider.rating || null,
             reviewCount: provider.num_reviews || 0,
             address: provider.address || "",
-            // Use provider's custom image if available, otherwise use stock photo based on type
-            image: provider.image || getStockPhotoForType(categories),
+            image: provider.image || null,
+            hasRealImage: !!provider.image,
             neighborhood: "",
             city: "",
             coordinates: coordinates,
@@ -406,11 +404,12 @@ export default function WellnessMarketplace() {
 
     return providers.filter((provider) => {
       const matchesCategory =
-        provider.isGooglePlace || // Google Places API already filtered by text query
-        selectedCategory === "all" ||
-        provider.categories?.some(
-          (cat) => cat.toLowerCase() === selectedCategory.toLowerCase()
-        );
+        provider.isGooglePlace
+          ? provider.categories?.[0] !== "Other" // only wellness-typed places
+          : selectedCategory === "all" ||
+            provider.categories?.some(
+              (cat) => cat.toLowerCase() === selectedCategory.toLowerCase()
+            );
 
       // Location-based filtering (fixed 50 miles)
       const distance = provider.coordinates
@@ -434,9 +433,22 @@ export default function WellnessMarketplace() {
         provider.categories?.some((cat) => cat.toLowerCase().includes(query));
 
 
+      if (supabaseOnly) {
+        if (provider.isGooglePlace) return false;
+        return !!provider.address;
+      }
+
+      if (appsOnly) {
+        if (provider.isGooglePlace) return false;
+        return !provider.address; // only Supabase providers without an address
+      }
+
+      // Hide Supabase providers without an address unless Apps pill is selected
+      if (!provider.isGooglePlace && !provider.address) return false;
+
       return matchesCategory && matchesLocation && matchesSearch;
     });
-  }, [providers, selectedCategory, userLocation, searchQuery]);
+  }, [providers, selectedCategory, userLocation, searchQuery, supabaseOnly, appsOnly]);
 
   // Reset to first page when filters change
   useEffect(() => {
@@ -451,9 +463,14 @@ export default function WellnessMarketplace() {
     1,
     Math.ceil(filteredListings.length / ITEMS_PER_PAGE)
   );
-  const paginatedListings = filteredListings.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+  const paginatedListings = useMemo(() =>
+    assignPhotosForPage(
+      filteredListings.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+      )
+    ),
+    [filteredListings, currentPage]
   );
 
   // Handle card click - highlight and scroll to on map

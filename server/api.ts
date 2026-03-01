@@ -525,6 +525,45 @@ app.post('/api/generate-lmn', async (req, res) => {
   }
 });
 
+// Provider interest form submission
+app.post('/api/provider-interest', async (req, res) => {
+  const { name, email, businessName, businessWebsite, notes } = req.body;
+
+  if (!name || !email || !businessName) {
+    return res.status(400).json({ error: 'Name, email, and business name are required.' });
+  }
+
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (!resendApiKey) {
+    console.warn('RESEND_API_KEY not set; skipping email.');
+    return res.status(500).json({ error: 'Email service not configured.' });
+  }
+
+  try {
+    const resend = new Resend(resendApiKey);
+    await resend.emails.send({
+      from: 'Saga Health <support@mysagahealth.com>',
+      to: 'partners@mysagahealth.com',
+      replyTo: email,
+      subject: `New Provider Interest: ${businessName}`,
+      text: [
+        `New provider inquiry received.`,
+        ``,
+        `Name: ${name}`,
+        `Email: ${email}`,
+        `Business Name: ${businessName}`,
+        `Business Website: ${businessWebsite || 'N/A'}`,
+        `Additional Notes: ${notes || 'N/A'}`,
+      ].join('\n'),
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Failed to send provider interest email:', err);
+    res.status(500).json({ error: 'Failed to send email.' });
+  }
+});
+
 // Start server
 app.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`LMN API server running on port ${PORT}`);

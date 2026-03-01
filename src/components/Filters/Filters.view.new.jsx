@@ -14,6 +14,8 @@ export default function FiltersView() {
     return true;
   });
 
+  if (visibleFilters.length === 0) return null;
+
   return (
     <div className="bg-white border-b border-gray-200 shadow-sm">
       <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-4">

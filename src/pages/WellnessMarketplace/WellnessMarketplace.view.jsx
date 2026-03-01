@@ -1,3 +1,4 @@
+import { useNavigate, useLocation } from "react-router-dom";
 import ListingCard from "../../components/ListingCard";
 import WellnessMap from "../../components/WellnessMap";
 import SearchBar from "../../components/SearchBar";
@@ -23,6 +24,10 @@ export default function WellnessMarketplaceView({
   onNavigateToLMN,
   itemsPerPage,
 }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const navLinkClass = (path) =>
+    `text-sm transition-colors ${location.pathname === path ? 'font-[750] text-gray-900' : 'font-medium text-gray-600 hover:text-gray-900'}`;
   // Get filter values from Zustand store for display
   const userLocation = useFilterStore((state) => state.userLocation);
 
@@ -33,12 +38,32 @@ export default function WellnessMarketplaceView({
       <Navbar
         onLogoClick={() => window.location.reload()}
         rightContent={
-          <button
-            className="px-6 py-2 bg-emerald-500 text-white font-medium rounded-xl shadow-md hover:bg-emerald-600 transition-colors"
-            onClick={() => window.open("https://mysagahealth.com", "_blank")}
-          >
-            Learn More
-          </button>
+          <div className="flex items-center gap-6">
+            <button
+              className={navLinkClass("/")}
+              onClick={() => navigate("/")}
+            >
+              Marketplace
+            </button>
+            <button
+              className={navLinkClass("/new-provider")}
+              onClick={() => navigate("/new-provider")}
+            >
+              New Provider?
+            </button>
+            <button
+              className={navLinkClass("/disclosures")}
+              onClick={() => navigate("/disclosures")}
+            >
+              Disclosures
+            </button>
+            <button
+              className="text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+              onClick={() => window.open("https://mysagahealth.com", "_blank")}
+            >
+              Learn More
+            </button>
+          </div>
         }
       />
 
@@ -65,7 +90,7 @@ export default function WellnessMarketplaceView({
       <div className="max-w-[1920px] mx-auto px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 h-[calc(100vh-146px)]">
         <div className="flex flex-col lg:flex-row h-full -mx-2 sm:-mx-3 md:-mx-4 lg:-mx-6 xl:-mx-8">
           {/* Listings Column */}
-          <div className="w-full lg:w-1/2 h-full overflow-y-auto px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 py-6">
+          <div className="w-full lg:w-[55%] h-full overflow-y-auto px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 py-6">
             {loading ? (
               <Loader
                 text="Loading wellness providers..."
@@ -188,7 +213,7 @@ export default function WellnessMarketplaceView({
           </div>
 
           {/* Map Column - Desktop only */}
-          <div className="hidden lg:block lg:w-3/5 h-full lg:px-0">
+          <div className="hidden lg:block lg:w-[45%] h-full lg:px-0">
             <div className="h-full w-full">
               <WellnessMap
                 listings={filteredListings}

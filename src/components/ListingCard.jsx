@@ -62,6 +62,18 @@ export default function ListingCard({ listing, isHighlighted, onClick }) {
             <h3 className="font-semibold text-lg text-gray-900 leading-tight">
               {listing.name}
             </h3>
+            {listing.categories && listing.categories.length > 0 && (
+              <div className="flex flex-wrap gap-1 justify-end shrink-0">
+                {listing.categories.map((category, index) => (
+                  <span
+                    key={index}
+                    className="px-2 py-1 text-xs font-medium bg-emerald-50 text-emerald-700 rounded-lg whitespace-nowrap"
+                  >
+                    {capitalizeWords(category)}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Rating, Reviews, and Location on one line */}
@@ -84,31 +96,19 @@ export default function ListingCard({ listing, isHighlighted, onClick }) {
               <span className="text-gray-400 text-sm">•</span>
             )}
             {listing.address && (
-              <span className="text-sm text-gray-500">{listing.address}</span>
+              <span className="text-sm text-gray-400">{listing.address}</span>
             )}
           </div>
 
-          {/* {listing.description && (
-            <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+          {!listing.isGooglePlace && listing.description && (
+            <p className="text-sm text-gray-600 mb-2 line-clamp-1">
               {listing.description}
             </p>
-          )} */}
+          )}
         </div>
 
-        {listing.categories && listing.categories.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 justify-start mb-2">
-            {listing.categories.map((category, index) => (
-              <span
-                key={index}
-                className="px-2 py-1 text-xs font-medium bg-emerald-50 text-emerald-700 rounded-lg whitespace-nowrap"
-              >
-                {capitalizeWords(category)}
-              </span>
-            ))}
-          </div>
-        )}
 
-        <div>
+        <div className="flex items-center justify-between mt-3">
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -124,6 +124,11 @@ export default function ListingCard({ listing, isHighlighted, onClick }) {
             <span>📅</span>
             <span>Book Now →</span>
           </button>
+          {!listing.isGooglePlace && (
+            <span className="px-2 py-1 text-xs font-medium bg-yellow-200 text-yellow-800 rounded-lg">
+              Saga Provider
+            </span>
+          )}
         </div>
       </div>
     </div>

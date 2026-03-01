@@ -5,6 +5,8 @@ import BookingPage from './pages/BookingPage'
 import EmbeddedBooking from './pages/EmbeddedBooking/EmbeddedBooking.controller'
 import LMNForm from './pages/LMNForm/LMNForm.controller'
 import PaymentSuccessPage from './pages/PaymentSuccessPage'
+import Disclosures from './pages/Disclosures'
+import ForProviders from './pages/ForProviders'
 
 export default function App() {
   return (
@@ -16,7 +18,8 @@ export default function App() {
         <Route path="/book/:businessName/schedule" element={<EmbeddedBooking />} />
         <Route path="/book/:businessName/lmn-form" element={<LMNForm />} />
         <Route path="/payment-success" element={<PaymentSuccessPage />} />
-
+        <Route path="/disclosures" element={<Disclosures />} />
+        <Route path="/new-provider" element={<ForProviders />} />
       </Routes>
     </BrowserRouter>
   )

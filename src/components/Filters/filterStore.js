@@ -13,6 +13,12 @@ export const useFilterStore = create(
       
       // Search query
       searchQuery: '',
+
+      // Show only Supabase providers
+      supabaseOnly: false,
+
+      // Show only Supabase providers without an address (apps)
+      appsOnly: false,
       
       // Actions
       setFilter: (filterId, value) =>
@@ -26,6 +32,10 @@ export const useFilterStore = create(
         })),
       
       setSearchQuery: (query) => set({ searchQuery: query }),
+
+      setSupabaseOnly: (value) => set({ supabaseOnly: value }),
+
+      setAppsOnly: (value) => set({ appsOnly: value }),
       
       setUserLocation: (location) => set({ userLocation: location }),
       
