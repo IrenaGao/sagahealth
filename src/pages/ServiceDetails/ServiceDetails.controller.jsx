@@ -60,15 +60,6 @@ export default function ServiceDetails() {
           oneBookingLink: data.one_booking_link === true,
           isApp: data.is_app != null,
         };
-        if (data.is_app != null) {
-          navigate(`/book/${businessSlug}/schedule`, {
-            replace: true,
-            state: {
-              stripeAcctId: data.stripe_acct_id || null,
-            },
-          });
-          return;
-        }
         setService(mappedData);
         setError(null);
       }

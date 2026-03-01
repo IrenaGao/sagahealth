@@ -54,7 +54,7 @@ export default function SearchBar() {
 
           {/* Saga Providers pill */}
           <button
-            onClick={() => setSupabaseOnly(!supabaseOnly)}
+            onClick={() => { setSupabaseOnly(!supabaseOnly); if (!supabaseOnly) setAppsOnly(false); }}
             className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
               supabaseOnly
                 ? 'bg-emerald-500 text-white shadow-md'
@@ -66,7 +66,7 @@ export default function SearchBar() {
 
           {/* Apps pill */}
           <button
-            onClick={() => setAppsOnly(!appsOnly)}
+            onClick={() => { setAppsOnly(!appsOnly); if (!appsOnly) setSupabaseOnly(false); }}
             className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
               appsOnly
                 ? 'bg-emerald-500 text-white shadow-md'
@@ -132,7 +132,7 @@ export default function SearchBar() {
 
           {/* Saga Providers pill */}
           <button
-            onClick={() => setSupabaseOnly(!supabaseOnly)}
+            onClick={() => { setSupabaseOnly(!supabaseOnly); if (!supabaseOnly) setAppsOnly(false); }}
             className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
               supabaseOnly
                 ? 'bg-emerald-500 text-white shadow-md'
@@ -144,7 +144,7 @@ export default function SearchBar() {
 
           {/* Apps pill */}
           <button
-            onClick={() => setAppsOnly(!appsOnly)}
+            onClick={() => { setAppsOnly(!appsOnly); if (!appsOnly) setSupabaseOnly(false); }}
             className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
               appsOnly
                 ? 'bg-emerald-500 text-white shadow-md'

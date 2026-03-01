@@ -60,6 +60,12 @@ export default function ForProviders() {
               Marketplace
             </button>
             <button
+              className="text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+              onClick={() => window.open('https://mysagahealth.com', '_blank')}
+            >
+              Learn More
+            </button>
+            <button
               className={navLinkClass('/new-provider')}
               onClick={() => navigate('/new-provider')}
             >
@@ -70,12 +76,6 @@ export default function ForProviders() {
               onClick={() => navigate('/disclosures')}
             >
               Disclosures
-            </button>
-            <button
-              className="text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
-              onClick={() => window.open('https://mysagahealth.com', '_blank')}
-            >
-              Learn More
             </button>
           </div>
         }

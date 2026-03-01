@@ -4,7 +4,11 @@ import { supabase } from '../../supabaseClient';
 import EmbeddedBookingView from './EmbeddedBooking.view.jsx';
 
 // Helper function to convert URL-friendly name back to potential business name matches
-const fromUrlFriendly = (urlName) => urlName.replace(/_/g, ' ');
+const fromUrlFriendly = (urlName) => {
+  const decoded = decodeURIComponent(urlName);
+  const normalized = decoded.replace(/[_-]+/g, '%').replace(/%+/g, '%');
+  return `%${normalized}%`;
+};
 
 // Helper function to format duration
 const formatDuration = (minutes) => {
@@ -77,10 +81,16 @@ export default function EmbeddedBooking() {
         .from('providers')
         .select('*')
         .ilike('business_name', searchPattern)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
       if (providerError) {
         setError(`Error: ${providerError.message}`);
+        return;
+      }
+
+      if (!providerData) {
+        setError('Provider not found');
         return;
       }
 
