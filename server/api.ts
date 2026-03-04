@@ -424,8 +424,8 @@ app.post('/api/generate-lmn', async (req, res) => {
 
     // Send to SignWell for signature
     console.log('Sending to SignWell for e-signature...');
-    // const recipientEmail = selectedNurse?.email || 'irenagao2013@gmail.com';
-    const recipientEmail = 'irenagao2013@gmail.com';
+    const recipientEmail = selectedNurse?.email || 'irenagao2013@gmail.com';
+    // const recipientEmail = 'irenagao2013@gmail.com';
     console.log("RECIPIENT EMAIL", recipientEmail);
     // Use patient's name from LMN form for recipientName
     const recipientName = `${firstName} ${lastName}`;
