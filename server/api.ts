@@ -449,6 +449,7 @@ app.post('/api/generate-lmn', async (req, res) => {
           metadata: {
             signwellDocumentGroupId: signwellResult.documentGroupId,
             customerEmail: email || '',
+            customerFirstName: firstName || '',
             lmnFileName: lmnFileName,
           }
         });
@@ -482,18 +483,21 @@ app.post('/api/generate-lmn', async (req, res) => {
         const [month, day, year] = estDateString.split('/');
         const today = `${year}-${month}-${day}`; // Format as YYYY-MM-DD
         
+        const referralRow: Record<string, any> = {
+          first_name: firstName,
+          last_name: lastName,
+          email: email || null,
+          date: today,
+          service: null,
+          is_lmn: true,
+          signwell_document_group_id: signwellResult.documentGroupId || null,
+        };
+        if (providerId !== null) {
+          referralRow.provider_id = providerId;
+        }
         const { error: referralError } = await supabase
           .from('client_referrals')
-          .insert({
-            first_name: firstName,
-            last_name: lastName,
-            email: email || null,
-            date: today,
-            service: null,
-            provider_id: providerId,
-            is_lmn: true,
-            signwell_document_group_id: signwellResult.documentGroupId || null,
-          });
+          .insert(referralRow);
         
         if (referralError) {
           console.error('Error saving client referral:', referralError);

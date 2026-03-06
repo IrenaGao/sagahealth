@@ -197,6 +197,7 @@ export async function handleSignwellWebhook(payload: WebhookPayload): Promise<Ha
     // Look up customer email from client_referrals table using signwell_document_group_id
     let recipientEmail: string | null = null;
     let lmnFileName: string | null = null;
+    let customerFirstName: string | null = null;
 
     if (documentGroupId) {
       try {
@@ -211,6 +212,7 @@ export async function handleSignwellWebhook(payload: WebhookPayload): Promise<Ha
           console.error('Error querying client_referrals:', referralError);
         } else if (referral) {
           recipientEmail = referral.email || null;
+          customerFirstName = referral.first_name || null;
           lmnFileName = `LMN_${referral.first_name}_${referral.last_name}_${referral.date}.pdf`;
           console.log(`✓ Found customer email: ${recipientEmail}`);
           console.log(`✓ Reconstructed LMN filename: ${lmnFileName}`);
@@ -222,10 +224,31 @@ export async function handleSignwellWebhook(payload: WebhookPayload): Promise<Ha
       }
     }
     
+    // Fallback: search Stripe payment intents for the customer email
+    if (!recipientEmail && documentGroupId) {
+      try {
+        console.log('Falling back to Stripe metadata search for customer email...');
+        const searchResult = await stripe.paymentIntents.search({
+          query: `metadata['signwellDocumentGroupId']:'${documentGroupId}'`,
+          limit: 1,
+        });
+        if (searchResult.data.length > 0) {
+          const pi = searchResult.data[0];
+          recipientEmail = pi.metadata.customerEmail || null;
+          customerFirstName = pi.metadata.customerFirstName || null;
+          lmnFileName = pi.metadata.lmnFileName || lmnFileName;
+          console.log(`✓ Found customer email from Stripe metadata: ${recipientEmail}`);
+        } else {
+          console.warn('No Stripe payment intent found with matching signwellDocumentGroupId');
+        }
+      } catch (stripeErr) {
+        console.error('Error searching Stripe for customer email:', stripeErr);
+      }
+    }
+
     // Use customer email if found, otherwise log warning (but don't send email to support)
     if (!recipientEmail) {
       console.error(`❌ Could not find customer email for SignWell document ${documentGroupId}. Email will not be sent.`);
-      console.error('This means the Resend API email will not be sent. Please check Stripe metadata.');
       return { received: true }; // Return early to prevent sending email to wrong address
     }
 
@@ -304,7 +327,7 @@ export async function handleSignwellWebhook(payload: WebhookPayload): Promise<Ha
           to: recipientEmail,
           subject: 'Your Letter of Medical Necessity for HSA Coverage is Ready!',
           text:
-            `Congrats ${recipientName}!` +
+            `Congrats ${customerFirstName || ''}!` +
             "\n\nA licensed practitioner has reviewed the information submitted in your form and has issued a Letter of Medical Necessity (LMN) recommending the service you purchased." +
             "\n\nIn order to use your pre-tax HSA, you'll need to submit a reimbursement claim to your HSA administrator, usually through their website. Be sure to (1) submit your purchase receipt and (2) keep your Letter of Medical Necessity in a safe place, which is attached to this email. Your HSA provider may ask for it as proof of medical necessity."+
             "\n\nOnce your claim is approved, your HSA administrator will reimburse you directly. Feel free to respond back to this email if you have any questions!" +
