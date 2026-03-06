@@ -14,13 +14,7 @@ export default function PaymentSuccessPage() {
   // Get session_id from URL if coming from Checkout
   const sessionId = searchParams.get('session_id');
 
-  // Clear localStorage on successful payment
-  useEffect(() => {
-    if (sessionId) {
-      localStorage.removeItem('lmnFormData');
-      localStorage.removeItem('lmnServiceName');
-    }
-  }, [sessionId]);
+  // Note: localStorage is cleared after LMN generation completes, not here
 
 
   // Fetch checkout session details if session_id is present (only once per sessionId)
@@ -42,12 +36,13 @@ export default function PaymentSuccessPage() {
           if (typeof window !== 'undefined' && window.gtag && data.payment_status === 'paid') {
             const amount = data.amount ? (data.amount / 100) : 0;
             // Extract business name from metadata or formData
-            const businessName = (data.metadata && data.metadata.businessName) 
-              || (data.formData && data.formData.businessName) 
+            const storedFormData = localStorage.getItem('lmnFormData') ? JSON.parse(localStorage.getItem('lmnFormData')) : null;
+            const businessName = (data.metadata && data.metadata.businessName)
+              || (storedFormData && storedFormData.businessName)
               || 'Unknown';
             // Extract service type (actual service name like "Massage Therapy")
             const serviceType = (data.metadata && data.metadata.serviceName)
-              || (data.formData && data.formData.desiredProduct)
+              || (storedFormData && storedFormData.desiredProduct)
               || 'Service';
             
             window.gtag('event', 'purchase', {
@@ -78,7 +73,10 @@ export default function PaymentSuccessPage() {
           }
           
           // Trigger LMN generation if needed (only once)
-          if (data.formData && !lmnGenerationTriggeredRef.current) {
+          // formData comes from localStorage (saved before Stripe redirect)
+          const storedFormDataStr = localStorage.getItem('lmnFormData');
+          const lmnFormData = storedFormDataStr ? JSON.parse(storedFormDataStr) : null;
+          if (lmnFormData && !lmnGenerationTriggeredRef.current) {
             lmnGenerationTriggeredRef.current = true;
             console.log('Payment successful! Generating LMN in background...');
             fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/generate-lmn`, {
@@ -87,7 +85,7 @@ export default function PaymentSuccessPage() {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                ...data.formData,
+                ...lmnFormData,
                 sessionId: sessionId,
                 paymentProcessed: true,
               }),
@@ -103,6 +101,8 @@ export default function PaymentSuccessPage() {
               })
               .then(result => {
                 console.log('LMN generation successful:', result);
+                localStorage.removeItem('lmnFormData');
+                localStorage.removeItem('lmnServiceName');
               })
               .catch(error => {
                 console.error('LMN generation failed (background):', error);

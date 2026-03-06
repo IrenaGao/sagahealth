@@ -56,7 +56,6 @@ export default function StripeCheckoutButton({
           cancelUrl: cancelUrl,
           metadata: {
             source: 'saga-health-lmn',
-            formData: formData ? JSON.stringify(formData) : undefined,
           }
         }),
       });
