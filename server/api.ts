@@ -40,7 +40,7 @@ const corsOptions: cors.CorsOptions = {
     const isVercelPreview = /^https:\/\/.*\.vercel\.app$/.test(origin);
     const isAllowedProd =
       origin === 'https://sagahealth.vercel.app' ||
-      origin === 'https://app.mysagahealth.com';
+      origin === 'https://shop.mysagahealth.com';
 
     if (isLocalhost || isVercelPreview || isAllowedProd) {
       return callback(null, true);
