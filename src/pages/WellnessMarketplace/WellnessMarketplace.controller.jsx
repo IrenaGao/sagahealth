@@ -285,7 +285,7 @@ export default function WellnessMarketplace() {
         .select("*")
         .order("id", { ascending: true });
 
-      // Fetch Google Places providers if userLocation is available
+      // Google Places requires a search location; Supabase-only when user skips location
       let googleData = [];
       if (userLocation) {
         setGooglePlacesLoading(true);
@@ -298,6 +298,8 @@ export default function WellnessMarketplace() {
         } finally {
           setGooglePlacesLoading(false);
         }
+      } else {
+        setGooglePlacesProviders([]);
       }
 
       console.log("userLocation", { userLocation, googleData });
@@ -394,15 +396,13 @@ export default function WellnessMarketplace() {
         : "null"
     );
 
-    // Don't show any providers until location is set
-    if (!userLocation) {
-      console.log("No location set, returning empty list");
-      return [];
-    }
-
     const query = searchQuery.trim().toLowerCase();
 
     return providers.filter((provider) => {
+      if (!userLocation && provider.isGooglePlace) {
+        return false;
+      }
+
       const matchesCategory =
         provider.isGooglePlace
           ? provider.categories?.[0] !== "Other" // only wellness-typed places
@@ -412,14 +412,15 @@ export default function WellnessMarketplace() {
             );
 
       // Location-based filtering (fixed 50 miles)
-      const distance = provider.coordinates
-        ? calculateDistance(
-            userLocation.lat,
-            userLocation.lng,
-            provider.coordinates.lat,
-            provider.coordinates.lng
-          )
-        : null;
+      const distance =
+        userLocation && provider.coordinates
+          ? calculateDistance(
+              userLocation.lat,
+              userLocation.lng,
+              provider.coordinates.lat,
+              provider.coordinates.lng
+            )
+          : null;
       const matchesLocation =
         !userLocation ||
         (provider.coordinates && distance <= 50);
@@ -435,12 +436,15 @@ export default function WellnessMarketplace() {
 
       if (supabaseOnly) {
         if (provider.isGooglePlace) return false;
-        return !!provider.address;
+        if (!provider.address) return false;
+        return matchesCategory && matchesLocation && matchesSearch;
       }
 
       if (appsOnly) {
         if (provider.isGooglePlace) return false;
-        return !provider.address; // only Supabase providers without an address
+        if (provider.address) return false;
+        // Address-less listings may lack coordinates; keep prior behavior (no radius filter)
+        return matchesCategory && matchesSearch;
       }
 
       // Hide Supabase providers without an address unless Apps pill is selected
@@ -457,6 +461,8 @@ export default function WellnessMarketplace() {
       selectedCategory,
       userLocation,
       providers.length,
+      supabaseOnly,
+      appsOnly,
     ]);
 
   const totalPages = Math.max(

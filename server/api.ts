@@ -495,6 +495,9 @@ app.post('/api/generate-lmn', async (req, res) => {
         if (providerId !== null) {
           referralRow.provider_id = providerId;
         }
+        if (selectedNurse?.id != null) {
+          referralRow.nurse_practitioner_id = selectedNurse.id;
+        }
         const { error: referralError } = await supabase
           .from('client_referrals')
           .insert(referralRow);

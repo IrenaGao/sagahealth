@@ -198,13 +198,14 @@ export async function handleSignwellWebhook(payload: WebhookPayload): Promise<Ha
     let recipientEmail: string | null = null;
     let lmnFileName: string | null = null;
     let customerFirstName: string | null = null;
+    let nursePractitionerId: number | null = null;
 
     if (documentGroupId) {
       try {
         console.log('Looking up client_referrals for documentGroupId:', documentGroupId);
         const { data: referral, error: referralError } = await supabase
           .from('client_referrals')
-          .select('email, first_name, last_name, date')
+          .select('email, first_name, last_name, date, nurse_practitioner_id')
           .eq('signwell_document_group_id', documentGroupId)
           .maybeSingle();
 
@@ -214,6 +215,7 @@ export async function handleSignwellWebhook(payload: WebhookPayload): Promise<Ha
           recipientEmail = referral.email || null;
           customerFirstName = referral.first_name || null;
           lmnFileName = `LMN_${referral.first_name}_${referral.last_name}_${referral.date}.pdf`;
+          nursePractitionerId = referral.nurse_practitioner_id || null;
           console.log(`✓ Found customer email: ${recipientEmail}`);
           console.log(`✓ Reconstructed LMN filename: ${lmnFileName}`);
         } else {
@@ -337,6 +339,33 @@ export async function handleSignwellWebhook(payload: WebhookPayload): Promise<Ha
         console.log('Notification email with LMN attachment sent to ' + recipientEmail);
       } catch (emailErr) {
         console.error('Failed to send notification email via Resend:', emailErr);
+      }
+    }
+
+    // Pay nurse practitioner $7 via Stripe transfer
+    if (nursePractitionerId) {
+      try {
+        const { data: nurse, error: nurseError } = await supabase
+          .from('nurse_practitioners')
+          .select('stripe_acct_id, first_name, last_name')
+          .eq('id', nursePractitionerId)
+          .maybeSingle();
+
+        if (nurseError) {
+          console.error('Error fetching nurse practitioner for payment:', nurseError);
+        } else if (nurse?.stripe_acct_id) {
+          const transfer = await stripe.transfers.create({
+            amount: 700, // $7.00 in cents
+            currency: 'usd',
+            destination: nurse.stripe_acct_id,
+            description: `LMN signing fee for document ${documentGroupId}`,
+          });
+          console.log(`✓ Paid $7 to nurse ${nurse.first_name} ${nurse.last_name} (transfer: ${transfer.id})`);
+        } else {
+          console.warn(`⚠ Nurse practitioner ${nursePractitionerId} has no stripe_acct_id; skipping payment`);
+        }
+      } catch (transferErr) {
+        console.error('Failed to create Stripe transfer for nurse practitioner:', transferErr);
       }
     }
   }

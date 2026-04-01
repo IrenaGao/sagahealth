@@ -126,15 +126,14 @@ export default function WellnessMarketplaceView({
               </div>
             ) : filteredListings.length === 0 ? (
               <div className="text-center py-20">
-                <div className="text-6xl mb-4">{userLocation ? '🔍' : '📍'}</div>
+                <div className="text-6xl mb-4">🔍</div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  {userLocation ? 'No results found' : 'Set your location to find providers'}
+                  No results found
                 </h3>
                 <p className="text-gray-600">
                   {userLocation
                     ? 'Try adjusting your search or filters'
-                    : 'Search for a city or allow location access to discover wellness providers near you'
-                  }
+                    : 'Try adjusting your search or filters. You can also set a location to discover additional nearby providers.'}
                 </p>
               </div>
             ) : (
