@@ -7,6 +7,7 @@ import LMNForm from './pages/LMNForm/LMNForm.controller'
 import PaymentSuccessPage from './pages/PaymentSuccessPage'
 import Disclosures from './pages/Disclosures'
 import ForProviders from './pages/ForProviders'
+import ApiDocs from './pages/ApiDocs'
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
         <Route path="/payment-success" element={<PaymentSuccessPage />} />
         <Route path="/disclosures" element={<Disclosures />} />
         <Route path="/new-provider" element={<ForProviders />} />
+        <Route path="/docs/api" element={<ApiDocs />} />
       </Routes>
     </BrowserRouter>
   )
