@@ -19,6 +19,9 @@ export const useFilterStore = create(
 
       // Show only Supabase providers without an address (apps)
       appsOnly: false,
+
+      // Show only pharmacy providers (id=1)
+      pharmacyOnly: false,
       
       // Actions
       setFilter: (filterId, value) =>
@@ -36,6 +39,8 @@ export const useFilterStore = create(
       setSupabaseOnly: (value) => set({ supabaseOnly: value }),
 
       setAppsOnly: (value) => set({ appsOnly: value }),
+
+      setPharmacyOnly: (value) => set({ pharmacyOnly: value }),
       
       setUserLocation: (location) => set({ userLocation: location }),
       

@@ -30,6 +30,7 @@ export default function WellnessMarketplace() {
   const searchQuery = useFilterStore((state) => state.searchQuery);
   const supabaseOnly = useFilterStore((state) => state.supabaseOnly);
   const appsOnly = useFilterStore((state) => state.appsOnly);
+  const pharmacyOnly = useFilterStore((state) => state.pharmacyOnly);
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   // Cache for search results based on location
@@ -343,8 +344,12 @@ export default function WellnessMarketplace() {
           };
         });
         const mappedData = await Promise.all(mappedDataPromises);
-        // Sort by order first (nulls last), then by id
+        // Sort by order first (nulls last), then by id; id=1 and id=2 are always pinned first
         mappedData.sort((a, b) => {
+          if (a.id === 1) return -1;
+          if (b.id === 1) return 1;
+          if (a.id === 2) return -1;
+          if (b.id === 2) return 1;
           if (a.order !== null && b.order !== null) {
             if (a.order !== b.order) {
               return a.order - b.order;
@@ -422,6 +427,8 @@ export default function WellnessMarketplace() {
             )
           : null;
       const matchesLocation =
+        provider.id === 1 ||
+        provider.id === 2 ||
         !userLocation ||
         (provider.coordinates && distance <= 50);
 
@@ -447,8 +454,13 @@ export default function WellnessMarketplace() {
         return matchesCategory && matchesSearch;
       }
 
-      // Hide Supabase providers without an address unless Apps pill is selected
-      if (!provider.isGooglePlace && !provider.address) return false;
+      if (pharmacyOnly) {
+        if (provider.isGooglePlace) return false;
+        return provider.id === 1 || provider.categories?.some((c) => c.toLowerCase().includes('pharmacy'));
+      }
+
+      // Hide Supabase providers without an address unless Apps pill is selected (id=1 and id=2 are always shown)
+      if (!provider.isGooglePlace && !provider.address && provider.id !== 1 && provider.id !== 2) return false;
 
       return matchesCategory && matchesLocation && matchesSearch;
     });
@@ -463,6 +475,7 @@ export default function WellnessMarketplace() {
       providers.length,
       supabaseOnly,
       appsOnly,
+      pharmacyOnly,
     ]);
 
   const totalPages = Math.max(

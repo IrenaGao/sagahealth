@@ -106,16 +106,22 @@ export default function EmbeddedBookingView({
         {/* Embedded Calendar or App Store Badge */}
         {service?.widgetType === 'external' ? (
           <div className="bg-white rounded-2xl shadow-lg p-12 flex flex-col items-center justify-center text-center" style={{ minHeight: '300px' }}>
-            <div className="text-5xl mb-4">📅</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Book your appointment</h3>
-            <p className="text-gray-600 mb-6">Click below to open the booking page for {service.name}.</p>
+            <div className="text-5xl mb-4">{service?.id === 2 ? '💊' : '📅'}</div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              {service?.id === 2 ? 'Find your medications' : 'Book your appointment'}
+            </h3>
+            <p className="text-gray-600 mb-6">
+              {service?.id === 2
+                ? 'Click below to find the best prices on your prescriptions with GoodRx.'
+                : `Click below to open the booking page for ${service.name}.`}
+            </p>
             <a
               href={bookingOption?.url}
               target="_blank"
               rel="noopener noreferrer"
               className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
             >
-              Book Now
+              {service?.id === 2 ? 'Find Savings' : 'Book Now'}
             </a>
           </div>
         ) : service?.isApp ? (

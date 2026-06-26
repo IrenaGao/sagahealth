@@ -40,10 +40,17 @@ export default function ListingCard({ listing, isHighlighted, onClick }) {
   return (
     <div
       onClick={handleCardClick}
-      className={`bg-white rounded-xl overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 flex flex-col sm:flex-row relative ${
+      className={`bg-white rounded-xl cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 flex flex-col sm:flex-row relative ${
         isHighlighted ? "ring-2 ring-emerald-500 shadow-lg" : "shadow-md"
       }`}
     >
+      {listing.id === 1 && (
+        <div className="absolute -top-2 -left-2 z-10">
+          <div className="bg-gradient-to-r from-emerald-500 to-teal-400 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg shadow-emerald-300 tracking-wide flex items-center gap-1">
+            ✨ Need GLP-1?
+          </div>
+        </div>
+      )}
       {/* Image - Left side on desktop, top on mobile */}
       {listing.image && (
         <div className="relative w-full sm:w-1/4 flex-shrink-0">

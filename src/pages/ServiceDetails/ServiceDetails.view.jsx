@@ -142,13 +142,30 @@ export default function ServiceDetailsView({
 
           {/* Description */}
           {service.description && (
-            <div className="mb-6 pb-6 border-b border-gray-200">
+            <div className={`mb-6 pb-6 ${service.id !== 1 ? "border-b border-gray-200" : ""}`}>
               <h2 className="text-lg font-semibold text-gray-900 mb-2">
                 About
               </h2>
               <p className="text-gray-600 leading-relaxed">
                 {service.description}
               </p>
+            </div>
+          )}
+
+          {/* OvalCare Catalog Download */}
+          {service.id === 1 && (
+            <div className="mb-6 pb-6 border-b border-gray-200">
+              <p className="text-gray-600 mb-3">Want to learn more about the pricings of medications?</p>
+              <a
+                href="/docs/OVAL-Access-Catalog-2026.pdf"
+                download
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium rounded-xl shadow transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download OvalCare Access Catalog 2026
+              </a>
             </div>
           )}
 

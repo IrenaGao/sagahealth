@@ -72,6 +72,10 @@ export default function ServiceDetails() {
   };
 
   const handleBookingClick = () => {
+    if (service.id === 1) {
+      window.open('https://account.ovalcare.com/sagahealth/checkout-review', '_blank');
+      return;
+    }
     if (service.oneBookingLink === true) {
       // If one_booking_link is true, skip booking page and go directly to schedule
       navigate(`/book/${businessSlug}/schedule`, {
@@ -86,6 +90,11 @@ export default function ServiceDetails() {
     }
   };
 
+  const LMN_FAQ_IDS = new Set([2, 4]);
+  const visibleFaqs = service?.id === 1
+    ? faqs.filter((f) => !LMN_FAQ_IDS.has(f.id))
+    : faqs;
+
   return (
     <ServiceDetailsView
       service={service}
@@ -94,7 +103,7 @@ export default function ServiceDetails() {
       navigate={navigate}
       businessSlug={businessSlug}
       onBookingClick={handleBookingClick}
-      faqs={faqs}
+      faqs={visibleFaqs}
     />
   );
 }
