@@ -22,6 +22,11 @@ export default function ListingCard({ listing, isHighlighted, onClick }) {
       listing.name || listing.business_name || `service-${listing.id}`
     );
 
+    if (listing.id === 2) {
+      window.open('https://www.goodrx.com', '_blank');
+      return;
+    }
+
     // Handle Google Places providers differently - they don't have service details in our DB
     if (listing.isGooglePlace) {
       // For Google Places providers, navigate directly to LMN form
