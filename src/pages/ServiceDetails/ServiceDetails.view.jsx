@@ -135,7 +135,7 @@ export default function ServiceDetailsView({
                 onClick={onBookingClick}
                 className="px-8 py-4 bg-emerald-500 text-white text-lg font-semibold rounded-xl shadow-lg hover:bg-emerald-600 transition-all hover:shadow-xl whitespace-nowrap"
               >
-                Book Now
+                {service.categories?.some(c => c.toLowerCase().includes('pharmacy')) ? 'Buy Now' : 'Book Now'}
               </Button>
             </div>
           </div>
@@ -191,7 +191,7 @@ export default function ServiceDetailsView({
           onClick={onBookingClick}
           className="w-full px-8 py-4 bg-emerald-500 text-white text-lg font-semibold rounded-xl shadow-lg hover:bg-emerald-600 transition-all hover:shadow-xl"
         >
-          Book Now
+          {service.categories?.some(c => c.toLowerCase().includes('pharmacy')) ? 'Buy Now' : 'Book Now'}
         </Button>
       </div>
     </div>
